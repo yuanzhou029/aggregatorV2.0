@@ -44,7 +44,7 @@ services:
       - ./plugin_manager:/aggregator/plugin_manager
     ports:
       - "5000:5000"  # API 端口
-      - "14047:3000" # 前端UI端口
+      - "14047:14047" # 前端UI端口
     restart: unless-stopped
     command: [
       "python", 

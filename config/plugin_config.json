@@ -1,9 +1,54 @@
 {
   "plugins": {
+    "ceshi": {
+      "module_path": "subscribe.scripts.ceshi",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "commons": {
+      "module_path": "subscribe.scripts.commons",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "debug_test_plugin": {
+      "module_path": "subscribe.scripts.debug_test_plugin",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "dynamic": {
+      "module_path": "subscribe.scripts.dynamic",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
     "fofa": {
       "module_path": "subscribe.scripts.fofa",
       "function_name": "main",
-      "enabled": true,
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "frontend_test_plugin": {
+      "module_path": "subscribe.scripts.frontend_test_plugin",
+      "function_name": "main",
+      "enabled": false,
       "cron_schedule": "",
       "parameters": {},
       "timeout": 300,
@@ -12,7 +57,7 @@
     "gitforks": {
       "module_path": "subscribe.scripts.gitforks",
       "function_name": "main",
-      "enabled": true,
+      "enabled": false,
       "cron_schedule": "",
       "parameters": {},
       "timeout": 300,
@@ -21,34 +66,7 @@
     "purefast": {
       "module_path": "subscribe.scripts.purefast",
       "function_name": "main",
-      "enabled": true,
-      "cron_schedule": "",
-      "parameters": {},
-      "timeout": 300,
-      "max_retries": 3
-    },
-    "tempairport": {
-      "module_path": "subscribe.scripts.tempairport",
-      "function_name": "main",
-      "enabled": true,
-      "cron_schedule": "",
-      "parameters": {},
-      "timeout": 300,
-      "max_retries": 3
-    },
-    "v2rayfree": {
-      "module_path": "subscribe.scripts.v2rayfree",
-      "function_name": "main",
-      "enabled": true,
-      "cron_schedule": "",
-      "parameters": {},
-      "timeout": 300,
-      "max_retries": 3
-    },
-    "v2rayse": {
-      "module_path": "subscribe.scripts.v2rayse",
-      "function_name": "main",
-      "enabled": true,
+      "enabled": false,
       "cron_schedule": "",
       "parameters": {},
       "timeout": 300,
@@ -57,7 +75,61 @@
     "scaner": {
       "module_path": "subscribe.scripts.scaner",
       "function_name": "main",
-      "enabled": true,
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "tempairport": {
+      "module_path": "subscribe.scripts.tempairport",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "test_plugin": {
+      "module_path": "subscribe.scripts.test_plugin",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "test_plugin_auth": {
+      "module_path": "subscribe.scripts.test_plugin_auth",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "test_plugin_check": {
+      "module_path": "subscribe.scripts.test_plugin_check",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "v2rayfree": {
+      "module_path": "subscribe.scripts.v2rayfree",
+      "function_name": "main",
+      "enabled": false,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "v2rayse": {
+      "module_path": "subscribe.scripts.v2rayse",
+      "function_name": "main",
+      "enabled": false,
       "cron_schedule": "",
       "parameters": {},
       "timeout": 300,

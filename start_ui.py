@@ -95,13 +95,13 @@ def main():
         print("开发模式启动...")
         print("请确保已安装Node.js和npm")
         print("后端API服务将在 http://localhost:5000")
-        print("前端开发服务器将在 http://localhost:3000")
+        print("前端开发服务器将在 http://localhost:14047")
         
         # 检查端口
         if not check_port(5000):
             print("警告: 端口5000已被占用")
-        if not check_port(3000):
-            print("警告: 端口3000已被占用")
+        if not check_port(14047):
+            print("警告: 端口14047已被占用")
         
         backend_thread = threading.Thread(target=start_backend)
         backend_thread.start()
@@ -112,7 +112,7 @@ def main():
         # 提示用户启动前端
         print("\n请在新终端中执行以下命令启动前端开发服务器:")
         print("cd web && npm install && npm run dev")
-        print("\n或者直接访问 http://localhost:3000")
+        print("\n或者直接访问 http://localhost:14047")
         print("\n默认登录凭据: admin / admin123 (请立即修改默认密码)")
 
 if __name__ == '__main__':

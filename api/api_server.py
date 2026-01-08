@@ -5,6 +5,7 @@ import json
 import os
 import hashlib
 import secrets
+import psutil
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from functools import wraps
@@ -18,7 +19,7 @@ from typing import Dict, Any
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from plugin_manager.manager import PluginManager
+from plugin_manager.manager import PluginManager, plugin_manager as global_plugin_manager
 from subscribe.logger import logger
 
 app = Flask(__name__)
@@ -36,8 +37,11 @@ SESSION_TIMEOUT = 3600  # 1小时
 # 简单的会话存储
 sessions = {}
 
-# 初始化插件管理器
-plugin_manager = PluginManager()
+# 系统启动时间
+SYSTEM_START_TIME = datetime.now()
+
+# 使用全局插件管理器实例
+plugin_manager = global_plugin_manager
 # logger实例已经从subscribe.logger导入，无需重新定义
 # logger = logger
 
@@ -53,7 +57,7 @@ def get_all_plugins_adaptor():
                 'name': getattr(config, 'name', name),
                 'description': getattr(config, 'description', f'{name} 插件'),
                 'enabled': getattr(config, 'enabled', False),
-                'status': 'idle',
+                'status': '空闲',
                 'schedule': getattr(config, 'cron_schedule', ''),
                 'parameters': getattr(config, 'parameters', {})
             }
@@ -63,12 +67,43 @@ def get_all_plugins_adaptor():
                 'name': config.get('name', name),
                 'description': config.get('description', f'{name} 插件'),
                 'enabled': config.get('enabled', config.get('enable', True)),
-                'status': 'idle',
+                'status': '空闲',
                 'schedule': config.get('schedule', config.get('cron_schedule', '')),
                 'parameters': config.get('parameters', {})
             }
         plugins.append(plugin_info)
     return plugins
+
+
+def get_running_tasks_count():
+    """获取当前运行的任务数"""
+    # 获取插件管理器中的运行中插件数量
+    running_count = 0
+    if hasattr(plugin_manager, 'running_plugins'):
+        running_count = len(plugin_manager.running_plugins)
+    else:
+        # 如果插件管理器没有跟踪运行中的插件，则检查Python进程中是否有运行中的插件
+        for proc in psutil.process_iter():
+            try:
+                if 'python' in proc.name().lower() and 'plugin' in ' '.join(proc.cmdline()).lower():
+                    running_count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+    
+    return running_count
+
+
+def get_system_uptime():
+    """获取系统运行时间"""
+    uptime = datetime.now() - SYSTEM_START_TIME
+    days = uptime.days
+    hours, remainder = divmod(uptime.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    
+    if days > 0:
+        return f"{days}天 {hours}小时 {minutes}分钟"
+    else:
+        return f"{hours}小时 {minutes}分钟 {seconds}秒"
 
 @app.route('/api/plugins', methods=['GET'])
 def get_plugins():
@@ -96,7 +131,7 @@ def get_plugin(plugin_name):
                 'name': plugin_name,
                 'description': getattr(config, 'description', f'{plugin_name} 插件'),
                 'enabled': getattr(config, 'enabled', False),
-                'status': 'idle',
+                'status': '空闲',
                 'schedule': getattr(config, 'cron_schedule', ''),
                 'parameters': getattr(config, 'parameters', {})
             }
@@ -196,12 +231,34 @@ def update_plugin(plugin_name):
         if plugin_name in plugin_manager.plugins:
             # 更新插件配置
             plugin_config = plugin_manager.plugins[plugin_name]
-            if 'enabled' in data:
-                plugin_config.enabled = data['enabled']
-            if 'schedule' in data:
-                plugin_config.cron_schedule = data['schedule']
-            if 'parameters' in data:
-                plugin_config.parameters = data['parameters']
+            
+            # 根据配置类型更新相应字段
+            if hasattr(plugin_config, '__dict__'):  # 对象类型
+                if 'enabled' in data:
+                    plugin_config.enabled = data['enabled']
+                if 'schedule' in data:
+                    plugin_config.cron_schedule = data['schedule']
+                if 'parameters' in data:
+                    plugin_config.parameters = data['parameters']
+                if 'description' in data:
+                    plugin_config.description = data['description']
+                if 'module_path' in data:
+                    plugin_config.module_path = data['module_path']
+                if 'function_name' in data:
+                    plugin_config.function_name = data['function_name']
+            else:  # 字典类型
+                if 'enabled' in data:
+                    plugin_config['enabled'] = data['enabled']
+                if 'schedule' in data:
+                    plugin_config['cron_schedule'] = data['schedule']
+                if 'parameters' in data:
+                    plugin_config['parameters'] = data['parameters']
+                if 'description' in data:
+                    plugin_config['description'] = data['description']
+                if 'module_path' in data:
+                    plugin_config['module_path'] = data['module_path']
+                if 'function_name' in data:
+                    plugin_config['function_name'] = data['function_name']
             
             # 保存配置
             plugin_manager._save_plugin_config()
@@ -277,12 +334,16 @@ def get_status():
         active_plugins = [p for p in plugins if p.get('enabled', False)]
         total_plugins = len(plugins)
         active_count = len(active_plugins)
+        running_tasks = get_running_tasks_count()
+        system_uptime = get_system_uptime()
         
         return jsonify({
             "success": True,
             "data": {
                 "total_plugins": total_plugins,
                 "active_plugins": active_count,
+                "running_tasks": running_tasks,
+                "system_uptime": system_uptime,
                 "last_update": datetime.now().isoformat(),
                 "plugins": plugins
             }
@@ -511,6 +572,239 @@ def run_plugin_protected(plugin_name):
 @require_auth
 def update_plugin_protected(plugin_name):
     return update_plugin(plugin_name)
+
+# 添加插件管理的新API
+@app.route('/api/plugins/add', methods=['POST'])
+@require_auth
+def add_plugin():
+    """添加插件"""
+    try:
+        data = request.get_json()
+        plugin_name = data.get('name')
+        description = data.get('description', f'{plugin_name} 插件')
+        module_path = data.get('module_path', f'subscribe.scripts.{plugin_name}')
+        function_name = data.get('function_name', 'main')
+        enabled = data.get('enabled', True)
+        schedule = data.get('schedule', '')
+        parameters = data.get('parameters', {})
+        
+        # 创建插件配置
+        from dataclasses import fields
+        try:
+            # 检查PluginManager是否具有正确的PluginConfig类
+            import inspect
+            plugin_config_class = getattr(plugin_manager.__class__, 'PluginConfig', None)
+            if plugin_config_class and inspect.isclass(plugin_config_class):
+                plugin_config = plugin_config_class(
+                    name=plugin_name,
+                    module_path=module_path,
+                    function_name=function_name,
+                    enabled=enabled,
+                    cron_schedule=schedule,
+                    parameters=parameters,
+                    timeout=data.get('timeout', 300),
+                    max_retries=data.get('max_retries', 3)
+                )
+            else:
+                # 创建一个简单的配置对象
+                class SimplePluginConfig:
+                    def __init__(self, **kwargs):
+                        for k, v in kwargs.items():
+                            setattr(self, k, v)
+                plugin_config = SimplePluginConfig(
+                    name=plugin_name,
+                    module_path=module_path,
+                    function_name=function_name,
+                    enabled=enabled,
+                    cron_schedule=schedule,
+                    parameters=parameters,
+                    timeout=data.get('timeout', 300),
+                    max_retries=data.get('max_retries', 3)
+                )
+        except:
+            # 如果以上都不行，使用字典形式
+            plugin_config = {
+                'name': plugin_name,
+                'module_path': module_path,
+                'function_name': function_name,
+                'enabled': enabled,
+                'cron_schedule': schedule,
+                'parameters': parameters,
+                'timeout': data.get('timeout', 300),
+                'max_retries': data.get('max_retries', 3)
+            }
+        
+        # 动态添加描述
+        if isinstance(plugin_config, dict):
+            plugin_config['description'] = description
+        else:
+            setattr(plugin_config, 'description', description)
+        
+        plugin_manager.plugins[plugin_name] = plugin_config
+        
+        # 保存配置
+        plugin_manager._save_plugin_config()
+        
+        return jsonify({
+            "success": True,
+            "message": f"插件 {plugin_name} 已添加"
+        })
+    except Exception as e:
+        logger.error(f"添加插件失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/api/plugins/upload', methods=['POST'])
+@require_auth
+def upload_plugin():
+    """上传插件脚本并添加插件配置"""
+    try:
+        from werkzeug.utils import secure_filename
+        import os
+        
+        # 检查是否有文件上传
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "没有上传文件"
+            }), 400
+        
+        file = request.files['file']
+        
+        # 检查文件名
+        if file.filename == '':
+            return jsonify({
+                "success": False,
+                "error": "没有选择文件"
+            }), 400
+        
+        if file and file.filename.endswith('.py'):
+            filename = secure_filename(file.filename)
+            plugin_name = os.path.splitext(filename)[0]  # 文件名作为插件名
+            
+            # 设置目标目录
+            script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'subscribe', 'scripts')
+            if not os.path.exists(script_dir):
+                os.makedirs(script_dir)
+            
+            file_path = os.path.join(script_dir, filename)
+            file.save(file_path)
+            
+            # 获取其他参数
+            name = request.form.get('name', plugin_name)
+            description = request.form.get('description', f'{name} 插件')
+            module_path = request.form.get('module_path', f'subscribe.scripts.{name}')
+            function_name = request.form.get('function_name', 'main')
+            enabled = request.form.get('enabled', 'true').lower() == 'true'
+            schedule = request.form.get('schedule', '')
+            parameters_str = request.form.get('parameters', '{}')
+            
+            try:
+                import json
+                parameters = json.loads(parameters_str)
+            except:
+                parameters = {}
+            
+            # 创建插件配置
+            try:
+                import inspect
+                plugin_config_class = getattr(plugin_manager.__class__, 'PluginConfig', None)
+                if plugin_config_class and inspect.isclass(plugin_config_class):
+                    plugin_config = plugin_config_class(
+                        name=name,
+                        module_path=module_path,
+                        function_name=function_name,
+                        enabled=enabled,
+                        cron_schedule=schedule,
+                        parameters=parameters,
+                        timeout=int(request.form.get('timeout', 300)),
+                        max_retries=int(request.form.get('max_retries', 3))
+                    )
+                else:
+                    # 创建一个简单的配置对象
+                    class SimplePluginConfig:
+                        def __init__(self, **kwargs):
+                            for k, v in kwargs.items():
+                                setattr(self, k, v)
+                    plugin_config = SimplePluginConfig(
+                        name=name,
+                        module_path=module_path,
+                        function_name=function_name,
+                        enabled=enabled,
+                        cron_schedule=schedule,
+                        parameters=parameters,
+                        timeout=int(request.form.get('timeout', 300)),
+                        max_retries=int(request.form.get('max_retries', 3))
+                    )
+            except:
+                # 如果以上都不行，使用字典形式
+                plugin_config = {
+                    'name': name,
+                    'module_path': module_path,
+                    'function_name': function_name,
+                    'enabled': enabled,
+                    'cron_schedule': schedule,
+                    'parameters': parameters,
+                    'timeout': int(request.form.get('timeout', 300)),
+                    'max_retries': int(request.form.get('max_retries', 3))
+                }
+            
+            # 动态添加描述
+            if isinstance(plugin_config, dict):
+                plugin_config['description'] = description
+            else:
+                setattr(plugin_config, 'description', description)
+            
+            plugin_manager.plugins[name] = plugin_config
+            
+            # 保存配置
+            plugin_manager._save_plugin_config()
+            
+            return jsonify({
+                "success": True,
+                "message": f"插件 {name} 已上传并添加"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "只支持上传Python文件(.py)"
+            }), 400
+    except Exception as e:
+        logger.error(f"上传插件失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/plugins/<plugin_name>/delete', methods=['DELETE'])
+@require_auth
+def delete_plugin(plugin_name):
+    """删除插件"""
+    try:
+        if plugin_name in plugin_manager.plugins:
+            del plugin_manager.plugins[plugin_name]
+            
+            # 从配置文件中移除
+            plugin_manager._save_plugin_config()
+            
+            return jsonify({
+                "success": True,
+                "message": f"插件 {plugin_name} 已删除"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "插件不存在"
+            }), 404
+    except Exception as e:
+        logger.error(f"删除插件失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route('/api/config/plugin', methods=['GET'])
 @require_auth

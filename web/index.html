@@ -4,10 +4,59 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aggregator 管理系统</title>
+    <title>Aggregator UI系统</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+      }
+      #loading {
+        text-align: center;
+        padding: 50px;
+        font-size: 18px;
+        color: #666;
+      }
+      #error-message {
+        color: red;
+        padding: 20px;
+        border: 1px solid red;
+        background-color: #ffe6e6;
+        margin: 20px;
+        display: none;
+      }
+      /* 默认隐藏根元素，直到应用加载 */
+      #root {
+        display: none;
+      }
+    </style>
   </head>
   <body>
+    <div id="loading">正在加载应用程序...</div>
+    <div id="error-message"></div>
     <div id="root"></div>
+    <script>
+      // 添加基本错误处理
+      window.addEventListener('error', function(e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-message').textContent = 'JavaScript错误: ' + e.error.toString();
+        document.getElementById('error-message').style.display = 'block';
+        console.error('Global error:', e.error);
+      });
+      
+      // 应用启动后隐藏加载提示并显示根元素
+      document.addEventListener('DOMContentLoaded', function() {
+        // 通常应用会在一定时间后准备好，这里延迟隐藏加载提示
+        setTimeout(function() {
+          const loadingEl = document.getElementById('loading');
+          const rootEl = document.getElementById('root');
+          if (loadingEl && rootEl) {
+            loadingEl.style.display = 'none';
+            rootEl.style.display = 'block';
+          }
+        }, 1000); // 1秒后假设应用已加载
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

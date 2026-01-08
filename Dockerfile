@@ -63,7 +63,6 @@ WORKDIR /aggregator
 # start and run
 # Default to run the UI service
 EXPOSE 5000
-EXPOSE 3000
 EXPOSE 14047
 
 # Copy built frontend to static directory
