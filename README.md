@@ -24,9 +24,11 @@
 ### 🌐 支持协议
 VMess | Trojan | SS | SSR | Snell | Hysteria2 | VLESS | Hysteria | TUIC | AnyTLS | HTTP | SOCKS
 
-## 🚀 两种使用方式
+## 🚀 快速开始
 
-### 方式一：process.py（推荐）
+### 两种使用方式
+
+#### 方式一：process.py（推荐）
 **完整功能版本** - 支持复杂配置、多源爬取、自定义规则
 
 ```bash
@@ -40,13 +42,7 @@ export PUSH_TOKEN=your_github_token
 python subscribe/process.py -s my-config.json
 ```
 
-**适用场景**：
-- 需要精细控制爬取规则
-- 多分组输出管理
-- 自定义存储后端
-- 定时自动化运行
-
-### 方式二：collect.py
+#### 方式二：collect.py
 **简化版本** - 快速收集机场订阅
 
 ```bash
@@ -57,13 +53,88 @@ python subscribe/collect.py \
     -t clash v2ray singbox
 ```
 
-**适用场景**：
-- 快速获取免费代理
-- 个人日常使用
-- 不需要复杂配置
-
 ### 🎁 共享订阅
 > 可前往 [Issue #91](https://github.com/wzdnzd/aggregator/issues/91) 获取现成的**共享订阅**，量大质优。**请勿浪费**
+
+## 🔌 插件开发与管理系统
+
+### 精细化插件管理系统
+新版本支持精细化插件管理，可精确控制每个插件的启用/禁用和定时执行。
+
+#### 系统概述
+精细化插件管理系统允许您精确控制每个插件的启用/禁用和定时执行。系统采用模块化设计，支持插件热加载和动态管理。
+
+#### 目录结构
+```
+aggregator/
+├── plugin_manager/           # 插件管理器
+│   ├── __init__.py
+│   └── manager.py
+├── plugins/                  # 插件目录
+│   ├── __init__.py
+│   ├── exercises/            # 练习题插件
+│   │   ├── __init__.py
+│   │   └── math_exercises.py
+│   ├── news/                 # 新闻插件
+│   │   └── __init__.py
+│   └── custom_plugins/       # 自定义插件
+│       ├── __init__.py
+│       └── my_plugin.py
+├── config/
+│   └── plugin_config.json    # 插件配置文件
+├── plugin_control.py         # 插件控制脚本
+└── main_executor.py          # 主执行器
+```
+
+#### 基础操作
+
+##### 查看所有插件状态
+```bash
+python plugin_control.py list
+```
+
+##### 启用插件
+```bash
+python plugin_control.py enable plugin_name
+```
+
+##### 禁用插件
+```bash
+python plugin_control.py disable plugin_name
+```
+
+##### 运行插件
+```bash
+python plugin_control.py run plugin_name
+```
+
+##### 查看插件状态
+```bash
+python plugin_control.py status plugin_name
+```
+
+#### 配置文件详解
+插件配置文件位于 `config/plugin_config.json`：
+
+```json
+{
+  "plugins": {
+    "plugin_name": {
+      "module_path": "plugins.exercises.math_exercises",  // 插件模块路径
+      "function_name": "crawl_math_exercises",           // 插件函数名
+      "enabled": true,                                   // 启用状态
+      "cron_schedule": "0 2 * * *",                     // 定时执行配置
+      "parameters": {                                   // 插件参数
+        "base_url": "https://example.com",
+        "grade": "3",
+        "subject": "math"
+      },
+      "timeout": 300,                                    // 超时时间（秒）
+      "max_retries": 3                                   // 最大重试次数
+    }
+  }
+}
+```
 
 ## 📦 Docker 部署
 
@@ -94,204 +165,6 @@ version: '3.8'
 
 services:
   aggregator:
-    image: ghcr.io/你的用户名/aggregator:latest
-    container_name: aggregator
-    environment:
-      - GIST_PAT=${GIST_PAT:-}
-      - GIST_LINK=${GIST_LINK:-}
-      - CUSTOMIZE_LINK=${CUSTOMIZE_LINK:-}
-      - TZ=Asia/Shanghai
-    volumes:
-      - ./data:/aggregator/data
-      - ./config:/aggregator/config
-      - ./plugins:/aggregator/plugins
-    restart: unless-stopped
-    command: [
-      "python", 
-      "-u", 
-      "main_executor.py"
-    ]
-```
-
-## 🔌 插件开发与管理
-
-### 插件开发
-拥有灵活的插件系统，支持自定义爬取目标。欢迎贡献高质量的爬取插件！
-
-### 精细化插件管理系统
-新版本支持精细化插件管理，可精确控制每个插件的启用/禁用和定时执行。以下是详细教程：
-
-#### 1. 系统概述
-精细化插件管理系统允许您精确控制每个插件的启用/禁用和定时执行。系统采用模块化设计，支持插件热加载和动态管理。
-
-#### 2. 目录结构
-```
-aggregator/
-├── plugin_manager/           # 插件管理器
-│   ├── __init__.py
-│   └── manager.py
-├── plugins/                  # 插件目录
-│   ├── __init__.py
-│   ├── exercises/            # 练习题插件
-│   │   ├── __init__.py
-│   │   └── math_exercises.py
-│   ├── news/                 # 新闻插件
-│   │   └── __init__.py
-│   └── custom_plugins/       # 自定义插件
-│       ├── __init__.py
-│       └── my_plugin.py
-├── config/
-│   └── plugin_config.json    # 插件配置文件
-├── plugin_control.py         # 插件控制脚本
-└── main_executor.py          # 主执行器
-```
-
-#### 3. 基础操作
-
-##### 3.1 查看所有插件状态
-```bash
-python plugin_control.py list
-```
-
-##### 3.2 启用插件
-```bash
-python plugin_control.py enable plugin_name
-```
-
-##### 3.3 禁用插件
-```bash
-python plugin_control.py disable plugin_name
-```
-
-##### 3.4 运行插件
-```bash
-python plugin_control.py run plugin_name
-```
-
-##### 3.5 查看插件状态
-```bash
-python plugin_control.py status plugin_name
-```
-
-#### 4. 配置文件详解
-插件配置文件位于 `config/plugin_config.json`：
-
-```json
-{
-  "plugins": {
-    "plugin_name": {
-      "module_path": "plugins.exercises.math_exercises",  // 插件模块路径
-      "function_name": "crawl_math_exercises",           // 插件函数名
-      "enabled": true,                                   // 启用状态
-      "cron_schedule": "0 2 * * *",                     // 定时执行配置
-      "parameters": {                                   // 插件参数
-        "base_url": "https://example.com",
-        "grade": "3",
-        "subject": "math"
-      },
-      "timeout": 300,                                    // 超时时间（秒）
-      "max_retries": 3                                   // 最大重试次数
-    }
-  }
-}
-```
-
-**参数说明：**
-- `module_path`: 插件模块的Python导入路径
-- `function_name`: 插件执行函数的名称
-- `enabled`: 布尔值，true为启用，false为禁用
-- `cron_schedule`: 定时执行配置（cron表达式格式）
-- `parameters`: 传递给插件的参数字典
-- `timeout`: 插件执行超时时间（秒）
-- `max_retries`: 最大重试次数
-
-#### 5. 创建自定义插件教程
-
-##### 5.1 插件开发基础
-每个插件必须包含一个函数，该函数接受一个参数字典并返回结果。以下是一个简单示例：
-
-```python
-# plugins/custom_plugins/my_plugin.py
-import sys
-import os
-sys.path.append('/aggregator')
-
-from subscribe.logger import logger
-
-
-def my_custom_function(params: dict):
-    """
-    自定义插件函数
-    
-    Args:
-        params: 插件参数
-        
-    Returns:
-        插件执行结果
-    """
-    logger.info(f"[MyCustomPlugin] 执行自定义插件，参数: {params}")
-    
-    # 实现您的自定义逻辑
-    result = {
-        "status": "success",
-        "message": "自定义插件执行成功",
-        "timestamp": __import__('time').time(),
-        "params": params
-    }
-    
-    logger.info(f"[MyCustomPlugin] 插件执行结果: {result}")
-    return result
-```
-
-##### 5.2 添加插件到配置
-在 `config/plugin_config.json` 中添加新插件配置：
-
-```json
-{
-  "plugins": {
-    "my_new_plugin": {
-      "module_path": "plugins.custom_plugins.my_plugin",
-      "function_name": "my_custom_function",
-      "enabled": false,
-      "cron_schedule": "0 4 * * *",
-      "parameters": {
-        "param1": "value1",
-        "param2": "value2"
-      },
-      "timeout": 300,
-      "max_retries": 3
-    }
-  }
-}
-```
-
-##### 5.3 启用插件
-```bash
-python plugin_control.py enable my_new_plugin
-```
-
-#### 6. 定时执行配置
-定时执行使用标准的cron表达式格式：
-
-```
-* * * * * 代表：分钟 小时 日 月 星期
-
-常见示例：
-"0 2 * * *"        # 每天凌晨2点执行
-"*/30 * * * *"      # 每30分钟执行一次
-"0 0 * * 0"         # 每周日凌晨执行
-"0 */6 * * *"       # 每6小时执行一次
-"30 10 * * 1-5"     # 每周一到周五上午10:30执行
-```
-
-#### 7. Docker部署
-使用Docker Compose部署插件系统：
-
-```yaml
-version: '3.8'
-
-services:
-  aggregator:
     image: ghcr.io/你的用户名/aggregator:latest  # 使用GitHub Container Registry镜像
     container_name: aggregator
     environment:
@@ -311,23 +184,6 @@ services:
       "main_executor.py"
     ]
 ```
-
-#### 8. 故障排除
-
-**问题1：插件无法找到**
-- 检查模块路径是否正确
-- 确认插件文件是否存在
-- 检查函数名是否正确
-
-**问题2：插件执行失败**
-- 查看日志输出
-- 检查参数配置
-- 确认依赖项是否安装
-
-**问题3：定时任务不执行**
-- 检查cron表达式格式
-- 确认插件处于启用状态
-- 验证时间区域设置
 
 ## 🚀 GitHub自动构建发布
 
@@ -376,15 +232,6 @@ git push -u origin main
    - 在GitHub仓库页面点击"Releases"
    - 点击"Draft a new release"
    - 设置标签（如v1.0.0）并发布
-
-3. **使用构建的镜像**
-```bash
-# 登录到GitHub Container Registry
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
-
-# 拉取镜像
-docker pull ghcr.io/你的用户名/你的仓库名:latest
-```
 
 ## 📊 工作流程
 
