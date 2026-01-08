@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, message, Tabs, Switch, Alert } from 'antd';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const { TabPane } = Tabs;
 
@@ -9,10 +10,13 @@ const SystemConfig: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+  const { isAuthenticated } = useAuth(); // 使用认证状态
 
   useEffect(() => {
-    fetchConfig();
-  }, []);
+    if (isAuthenticated) { // 只有在认证后才获取配置
+      fetchConfig();
+    }
+  }, [isAuthenticated]);
 
   const fetchConfig = async () => {
     try {
@@ -60,6 +64,15 @@ const SystemConfig: React.FC = () => {
       setSaving(false);
     }
   };
+
+  // 检查是否已认证，未认证时显示提示
+  if (!isAuthenticated) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <h2>请先登录以访问系统配置功能</h2>
+      </div>
+    );
+  }
 
   return (
     <div>

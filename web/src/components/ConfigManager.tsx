@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, message, Tabs, Switch } from 'antd';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const { TabPane } = Tabs;
 
@@ -15,10 +16,13 @@ const ConfigManager: React.FC = () => {
   const [pluginConfig, setPluginConfig] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm();
+  const { isAuthenticated } = useAuth(); // 使用认证状态
 
   useEffect(() => {
-    fetchConfig();
-  }, []);
+    if (isAuthenticated) { // 只有在认证后才获取配置
+      fetchConfig();
+    }
+  }, [isAuthenticated]);
 
   const fetchConfig = async () => {
     try {
@@ -49,6 +53,15 @@ const ConfigManager: React.FC = () => {
       message.error('保存配置失败');
     }
   };
+
+  // 检查是否已认证，未认证时显示提示
+  if (!isAuthenticated) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <h2>请先登录以访问配置管理功能</h2>
+      </div>
+    );
+  }
 
   return (
     <div>

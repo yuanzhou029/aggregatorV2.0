@@ -15,11 +15,15 @@ import logging
 from typing import Dict, Any
 
 # 导入插件管理器
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from plugin_manager.manager import PluginManager
-from subscribe.logger import setup_logger
+from subscribe.logger import logger
 
 app = Flask(__name__)
-CORS(app)  # 允许跨域请求
+app.config['JSON_SORT_KEYS'] = False  # 保持JSON键的顺序
+CORS(app, supports_credentials=True, origins=['*'], allow_headers=['Content-Type', 'Authorization'])  # 允许跨域请求
 
 # 配置文件路径
 CONFIG_PATH = './config/plugin_config.json'
@@ -34,13 +38,43 @@ sessions = {}
 
 # 初始化插件管理器
 plugin_manager = PluginManager()
-logger = setup_logger()
+# logger实例已经从subscribe.logger导入，无需重新定义
+# logger = logger
+
+# 适配插件管理器的接口
+# 为插件管理器创建适配器，处理不同类型的插件配置
+def get_all_plugins_adaptor():
+    plugins = []
+    for name, config in plugin_manager.plugins.items():
+        # 检查配置是数据类对象还是字典
+        if hasattr(config, 'name'):
+            # 这是一个PluginConfig对象
+            plugin_info = {
+                'name': getattr(config, 'name', name),
+                'description': getattr(config, 'description', f'{name} 插件'),
+                'enabled': getattr(config, 'enabled', False),
+                'status': 'idle',
+                'schedule': getattr(config, 'cron_schedule', ''),
+                'parameters': getattr(config, 'parameters', {})
+            }
+        else:
+            # 这是一个字典配置
+            plugin_info = {
+                'name': config.get('name', name),
+                'description': config.get('description', f'{name} 插件'),
+                'enabled': config.get('enabled', config.get('enable', True)),
+                'status': 'idle',
+                'schedule': config.get('schedule', config.get('cron_schedule', '')),
+                'parameters': config.get('parameters', {})
+            }
+        plugins.append(plugin_info)
+    return plugins
 
 @app.route('/api/plugins', methods=['GET'])
 def get_plugins():
     """获取所有插件列表及状态"""
     try:
-        plugins = plugin_manager.get_all_plugins()
+        plugins = get_all_plugins_adaptor()
         return jsonify({
             "success": True,
             "data": plugins
@@ -56,8 +90,16 @@ def get_plugins():
 def get_plugin(plugin_name):
     """获取特定插件信息"""
     try:
-        plugin = plugin_manager.get_plugin_info(plugin_name)
-        if plugin:
+        if plugin_name in plugin_manager.plugins:
+            config = plugin_manager.plugins[plugin_name]
+            plugin = {
+                'name': plugin_name,
+                'description': getattr(config, 'description', f'{plugin_name} 插件'),
+                'enabled': getattr(config, 'enabled', False),
+                'status': 'idle',
+                'schedule': getattr(config, 'cron_schedule', ''),
+                'parameters': getattr(config, 'parameters', {})
+            }
             return jsonify({
                 "success": True,
                 "data": plugin
@@ -122,17 +164,23 @@ def disable_plugin(plugin_name):
 def run_plugin(plugin_name):
     """立即执行插件"""
     try:
-        success = plugin_manager.run_plugin(plugin_name)
-        if success:
-            return jsonify({
-                "success": True,
-                "message": f"插件 {plugin_name} 已启动执行"
-            })
+        if plugin_name in plugin_manager.plugins:
+            result = plugin_manager.execute_plugin(plugin_name)
+            if result is not None:
+                return jsonify({
+                    "success": True,
+                    "message": f"插件 {plugin_name} 已执行完成"
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "执行插件失败"
+                }), 400
         else:
             return jsonify({
                 "success": False,
-                "error": "执行插件失败"
-            }), 400
+                "error": "插件不存在"
+            }), 404
     except Exception as e:
         logger.error(f"执行插件失败: {str(e)}")
         return jsonify({
@@ -145,8 +193,19 @@ def update_plugin(plugin_name):
     """更新插件配置"""
     try:
         data = request.get_json()
-        success = plugin_manager.update_plugin_config(plugin_name, data)
-        if success:
+        if plugin_name in plugin_manager.plugins:
+            # 更新插件配置
+            plugin_config = plugin_manager.plugins[plugin_name]
+            if 'enabled' in data:
+                plugin_config.enabled = data['enabled']
+            if 'schedule' in data:
+                plugin_config.cron_schedule = data['schedule']
+            if 'parameters' in data:
+                plugin_config.parameters = data['parameters']
+            
+            # 保存配置
+            plugin_manager._save_plugin_config()
+            
             return jsonify({
                 "success": True,
                 "message": f"插件 {plugin_name} 配置已更新"
@@ -154,8 +213,8 @@ def update_plugin(plugin_name):
         else:
             return jsonify({
                 "success": False,
-                "error": "更新插件配置失败"
-            }), 400
+                "error": "插件不存在"
+            }), 404
     except Exception as e:
         logger.error(f"更新插件配置失败: {str(e)}")
         return jsonify({
@@ -214,7 +273,7 @@ def update_plugin_config():
 def get_status():
     """获取系统整体状态"""
     try:
-        plugins = plugin_manager.get_all_plugins()
+        plugins = get_all_plugins_adaptor()
         active_plugins = [p for p in plugins if p.get('enabled', False)]
         total_plugins = len(plugins)
         active_count = len(active_plugins)
@@ -341,11 +400,31 @@ def require_auth(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
 @app.route('/api/login', methods=['POST'])
 def login():
     """用户登录"""
     try:
-        data = request.get_json()
+        # 尝试多种方式获取JSON数据
+        data = None
+        if request.is_json:
+            data = request.get_json()
+        else:
+            # 尝试从请求数据中解析JSON
+            content_type = request.content_type
+            if content_type and 'application/json' in content_type:
+                try:
+                    import json as std_json
+                    data = std_json.loads(request.get_data(as_text=True))
+                except:
+                    pass
+            
+        if data is None:
+            return jsonify({
+                'success': False,
+                'error': 'No valid JSON data provided'
+            }), 400
+            
         username = data.get('username')
         password = data.get('password')
         
@@ -402,18 +481,66 @@ def logout():
 
 
 # 为需要保护的端点添加身份验证
-app.add_url_rule('/api/plugins', 'get_plugins', require_auth(get_plugins), methods=['GET'])
-app.add_url_rule('/api/plugins/<plugin_name>', 'get_plugin', require_auth(get_plugin), methods=['GET'])
-app.add_url_rule('/api/plugins/<plugin_name>/enable', 'enable_plugin', require_auth(enable_plugin), methods=['POST'])
-app.add_url_rule('/api/plugins/<plugin_name>/disable', 'disable_plugin', require_auth(disable_plugin), methods=['POST'])
-app.add_url_rule('/api/plugins/<plugin_name>/run', 'run_plugin', require_auth(run_plugin), methods=['POST'])
-app.add_url_rule('/api/plugins/<plugin_name>', 'update_plugin', require_auth(update_plugin), methods=['PUT'])
-app.add_url_rule('/api/config/plugin', 'get_plugin_config', require_auth(get_plugin_config), methods=['GET'])
-app.add_url_rule('/api/config/plugin', 'update_plugin_config', require_auth(update_plugin_config), methods=['PUT'])
-app.add_url_rule('/api/config/system', 'get_system_config', require_auth(get_system_config), methods=['GET'])
-app.add_url_rule('/api/config/system', 'update_system_config', require_auth(update_system_config), methods=['PUT'])
-app.add_url_rule('/api/status', 'get_status', require_auth(get_status), methods=['GET'])
-app.add_url_rule('/api/logs', 'get_logs', require_auth(get_logs), methods=['GET'])
+# 重新定义需要保护的路由
+@app.route('/api/plugins', methods=['GET'])
+@require_auth
+def get_plugins_protected():
+    return get_plugins()
+
+@app.route('/api/plugins/<plugin_name>', methods=['GET'])
+@require_auth
+def get_plugin_protected(plugin_name):
+    return get_plugin(plugin_name)
+
+@app.route('/api/plugins/<plugin_name>/enable', methods=['POST'])
+@require_auth
+def enable_plugin_protected(plugin_name):
+    return enable_plugin(plugin_name)
+
+@app.route('/api/plugins/<plugin_name>/disable', methods=['POST'])
+@require_auth
+def disable_plugin_protected(plugin_name):
+    return disable_plugin(plugin_name)
+
+@app.route('/api/plugins/<plugin_name>/run', methods=['POST'])
+@require_auth
+def run_plugin_protected(plugin_name):
+    return run_plugin(plugin_name)
+
+@app.route('/api/plugins/<plugin_name>', methods=['PUT'])
+@require_auth
+def update_plugin_protected(plugin_name):
+    return update_plugin(plugin_name)
+
+@app.route('/api/config/plugin', methods=['GET'])
+@require_auth
+def get_plugin_config_protected():
+    return get_plugin_config()
+
+@app.route('/api/config/plugin', methods=['PUT'])
+@require_auth
+def update_plugin_config_protected():
+    return update_plugin_config()
+
+@app.route('/api/config/system', methods=['GET'])
+@require_auth
+def get_system_config_protected():
+    return get_system_config()
+
+@app.route('/api/config/system', methods=['PUT'])
+@require_auth
+def update_system_config_protected():
+    return update_system_config()
+
+@app.route('/api/status', methods=['GET'])
+@require_auth
+def get_status_protected():
+    return get_status()
+
+@app.route('/api/logs', methods=['GET'])
+@require_auth
+def get_logs_protected():
+    return get_logs()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

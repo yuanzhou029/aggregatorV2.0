@@ -1,97 +1,67 @@
 {
   "plugins": {
-    "math_exercises": {
-      "module_path": "plugins.exercises.math_exercises",
-      "function_name": "crawl_math_exercises",
+    "fofa": {
+      "module_path": "subscribe.scripts.fofa",
+      "function_name": "main",
       "enabled": true,
-      "cron_schedule": "0 2 * * *",
-      "parameters": {
-        "base_url": "https://math-examples.com",
-        "grade": "3",
-        "subject": "math"
-      },
+      "cron_schedule": "",
+      "parameters": {},
       "timeout": 300,
       "max_retries": 3
     },
-    "chinese_exercises": {
-      "module_path": "plugins.exercises.chinese_exercises",
-      "function_name": "crawl_chinese_exercises",
+    "gitforks": {
+      "module_path": "subscribe.scripts.gitforks",
+      "function_name": "main",
       "enabled": true,
-      "cron_schedule": "0 3 * * *",
-      "parameters": {
-        "base_url": "https://chinese-examples.com",
-        "grade": "3",
-        "subject": "chinese"
-      },
+      "cron_schedule": "",
+      "parameters": {},
       "timeout": 300,
       "max_retries": 3
     },
-    "news_crawler": {
-      "module_path": "plugins.news.crawler",
-      "function_name": "crawl_news",
-      "enabled": false,
-      "cron_schedule": "*/30 * * * *",
-      "parameters": {
-        "news_source": "education"
-      },
-      "timeout": 180,
-      "max_retries": 2
-    },
-    "my_custom_plugin": {
-      "module_path": "plugins.custom_plugins.my_plugin",
-      "function_name": "my_custom_function",
-      "enabled": false,
-      "cron_schedule": "0 6 * * 1",
-      "parameters": {
-        "custom_param": "value"
-      },
-      "timeout": 600,
-      "max_retries": 1
-    },
-    "exercise_example": {
-      "module_path": "plugins.exercises.exercise_example",
-      "function_name": "crawl_exercises",
+    "purefast": {
+      "module_path": "subscribe.scripts.purefast",
+      "function_name": "main",
       "enabled": true,
-      "cron_schedule": "0 5 * * *",
-      "parameters": {
-        "base_url": "https://example-exercises.com",
-        "subject": "math",
-        "grade": "3",
-        "max_items": 5,
-        "push_to": [
-          "exercises"
-        ]
-      },
+      "cron_schedule": "",
+      "parameters": {},
       "timeout": 300,
       "max_retries": 3
     },
-    "news_example": {
-      "module_path": "plugins.news.news_example",
-      "function_name": "crawl_news",
-      "enabled": false,
-      "cron_schedule": "0 6 * * *",
-      "parameters": {
-        "news_source": "education",
-        "max_items": 3,
-        "push_to": [
-          "news"
-        ]
-      },
+    "tempairport": {
+      "module_path": "subscribe.scripts.tempairport",
+      "function_name": "main",
+      "enabled": true,
+      "cron_schedule": "",
+      "parameters": {},
       "timeout": 300,
-      "max_retries": 2
+      "max_retries": 3
     },
-    "custom_example": {
-      "module_path": "plugins.custom_plugins.custom_example",
-      "function_name": "my_custom_function",
-      "enabled": false,
-      "cron_schedule": "0 7 * * *",
-      "parameters": {
-        "action": "hello",
-        "x": 10,
-        "y": 20
-      },
-      "timeout": 120,
-      "max_retries": 1
+    "v2rayfree": {
+      "module_path": "subscribe.scripts.v2rayfree",
+      "function_name": "main",
+      "enabled": true,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "v2rayse": {
+      "module_path": "subscribe.scripts.v2rayse",
+      "function_name": "main",
+      "enabled": true,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "scaner": {
+      "module_path": "subscribe.scripts.scaner",
+      "function_name": "main",
+      "enabled": true,
+      "cron_schedule": "",
+      "parameters": {},
+      "timeout": 300,
+      "max_retries": 3
     }
   }
 }

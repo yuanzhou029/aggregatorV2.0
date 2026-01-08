@@ -57,7 +57,7 @@ class PluginManager:
                 config_data = json.load(f)
             
             for plugin_name, plugin_info in config_data.get("plugins", {}).items():
-                self.plugins[plugin_name] = PluginConfig(
+                plugin_config = PluginConfig(
                     name=plugin_name,
                     module_path=plugin_info["module_path"],
                     function_name=plugin_info["function_name"],
@@ -67,6 +67,14 @@ class PluginManager:
                     timeout=plugin_info.get("timeout", 300),
                     max_retries=plugin_info.get("max_retries", 3)
                 )
+                        
+                # 添加描述信息到插件配置对象
+                if "description" in plugin_info:
+                    setattr(plugin_config, 'description', plugin_info["description"])
+                else:
+                    setattr(plugin_config, 'description', f'{plugin_name} 插件')
+                        
+                self.plugins[plugin_name] = plugin_config
             
             logger.info(f"成功加载 {len(self.plugins)} 个插件配置")
         except Exception as e:
@@ -76,29 +84,66 @@ class PluginManager:
         """创建默认插件配置文件"""
         default_config = {
             "plugins": {
-                "math_exercises": {
-                    "module_path": "plugins.exercises.math_exercises",
-                    "function_name": "crawl_math_exercises",
+                "fofa": {
+                    "module_path": "subscribe.scripts.fofa",
+                    "function_name": "main",
                     "enabled": True,
-                    "cron_schedule": "0 2 * * *",
-                    "parameters": {
-                        "base_url": "https://math-examples.com",
-                        "grade": "3",
-                        "subject": "math"
-                    },
+                    "cron_schedule": "",
+                    "parameters": {},
                     "timeout": 300,
                     "max_retries": 3
                 },
-                "chinese_exercises": {
-                    "module_path": "plugins.exercises.chinese_exercises", 
-                    "function_name": "crawl_chinese_exercises",
+                "gitforks": {
+                    "module_path": "subscribe.scripts.gitforks", 
+                    "function_name": "main",
                     "enabled": True,
-                    "cron_schedule": "0 3 * * *",
-                    "parameters": {
-                        "base_url": "https://chinese-examples.com",
-                        "grade": "3",
-                        "subject": "chinese"
-                    },
+                    "cron_schedule": "",
+                    "parameters": {},
+                    "timeout": 300,
+                    "max_retries": 3
+                },
+                "purefast": {
+                    "module_path": "subscribe.scripts.purefast",
+                    "function_name": "main",
+                    "enabled": True,
+                    "cron_schedule": "",
+                    "parameters": {},
+                    "timeout": 300,
+                    "max_retries": 3
+                },
+                "tempairport": {
+                    "module_path": "subscribe.scripts.tempairport",
+                    "function_name": "main",
+                    "enabled": True,
+                    "cron_schedule": "",
+                    "parameters": {},
+                    "timeout": 300,
+                    "max_retries": 3
+                },
+                "v2rayfree": {
+                    "module_path": "subscribe.scripts.v2rayfree",
+                    "function_name": "main",
+                    "enabled": True,
+                    "cron_schedule": "",
+                    "parameters": {},
+                    "timeout": 300,
+                    "max_retries": 3
+                },
+                "v2rayse": {
+                    "module_path": "subscribe.scripts.v2rayse",
+                    "function_name": "main",
+                    "enabled": True,
+                    "cron_schedule": "",
+                    "parameters": {},
+                    "timeout": 300,
+                    "max_retries": 3
+                },
+                "scaner": {
+                    "module_path": "subscribe.scripts.scaner",
+                    "function_name": "main",
+                    "enabled": True,
+                    "cron_schedule": "",
+                    "parameters": {},
                     "timeout": 300,
                     "max_retries": 3
                 }
