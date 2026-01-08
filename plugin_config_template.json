@@ -1,0 +1,57 @@
+{
+  "plugins": {
+    "example_plugin": {
+      "module_path": "plugins.exercises.math_exercises",
+      "function_name": "crawl_math_exercises",
+      "enabled": true,
+      "cron_schedule": "0 2 * * *",
+      "parameters": {
+        "base_url": "https://example.com",
+        "grade": "3",
+        "subject": "math",
+        "timeout": 30
+      },
+      "timeout": 300,
+      "max_retries": 3
+    },
+    "news_crawler": {
+      "module_path": "plugins.news.crawler",
+      "function_name": "crawl_news",
+      "enabled": false,
+      "cron_schedule": "*/30 * * * *",
+      "parameters": {
+        "rss_url": "https://example-news.com/rss",
+        "categories": ["tech", "science"],
+        "max_items": 10
+      },
+      "timeout": 120,
+      "max_retries": 2
+    },
+    "weather_monitor": {
+      "module_path": "plugins.custom_plugins.weather_plugin",
+      "function_name": "weather_crawl_plugin",
+      "enabled": false,
+      "cron_schedule": "0 */3 * * *",
+      "parameters": {
+        "api_key": "your_weather_api_key",
+        "city": "Beijing",
+        "units": "metric"
+      },
+      "timeout": 60,
+      "max_retries": 3
+    },
+    "data_processor": {
+      "module_path": "plugins.custom_plugins.processor",
+      "function_name": "process_collected_data",
+      "enabled": true,
+      "cron_schedule": "0 1 * * *",
+      "parameters": {
+        "input_source": "/aggregator/data/raw",
+        "output_destination": "/aggregator/data/processed",
+        "format": "json"
+      },
+      "timeout": 600,
+      "max_retries": 1
+    }
+  }
+}

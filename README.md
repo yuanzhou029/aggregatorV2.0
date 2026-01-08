@@ -81,7 +81,8 @@ aggregator/
 │       ├── __init__.py
 │       └── my_plugin.py
 ├── config/
-│   └── plugin_config.json    # 插件配置文件
+│   ├── plugin_config.json    # 插件配置文件
+│   └── plugin_config_template.json  # 插件配置模板
 ├── plugin_control.py         # 插件控制脚本
 └── main_executor.py          # 主执行器
 ```
@@ -136,43 +137,348 @@ python plugin_control.py status plugin_name
 }
 ```
 
+#### 自定义插件开发指南
+
+##### 1. 插件开发基础
+每个插件必须包含一个函数，该函数接受一个参数字典并返回结果。
+
+##### 2. 创建自定义插件
+
+**步骤 1：创建插件文件**
+
+在 `plugins/custom_plugins/` 目录下创建新的插件文件：
+
+```python
+# plugins/custom_plugins/my_custom_plugin.py
+import sys
+import os
+import requests
+from urllib.parse import urljoin
+import time
+
+# 添加项目路径到Python环境
+sys.path.append('/aggregator')
+
+from subscribe.logger import logger
+
+
+def my_custom_function(params: dict):
+    """
+    自定义插件函数
+    
+    Args:
+        params: 插件参数字典
+        
+    Returns:
+        插件执行结果，通常是一个列表，包含要处理的数据
+    """
+    # 记录插件开始执行
+    logger.info(f"[MyCustomPlugin] 开始执行自定义插件，参数: {params}")
+    
+    # 从参数中获取配置
+    base_url = params.get("base_url", "https://example.com")
+    timeout = params.get("timeout", 30)
+    
+    try:
+        # 执行自定义逻辑
+        response = requests.get(base_url, timeout=timeout)
+        response.raise_for_status()
+        
+        # 处理响应数据
+        data = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
+        
+        # 构造返回结果
+        result = {
+            "status": "success",
+            "message": "自定义插件执行成功",
+            "timestamp": int(time.time()),
+            "data": data,
+            "params": params
+        }
+        
+        logger.info(f"[MyCustomPlugin] 插件执行完成，结果: {result}")
+        return result
+        
+    except requests.exceptions.RequestException as e:
+        error_result = {
+            "status": "error",
+            "message": f"请求失败: {str(e)}",
+            "timestamp": int(time.time()),
+            "params": params
+        }
+        logger.error(f"[MyCustomPlugin] 插件执行失败: {error_result}")
+        return error_result
+    except Exception as e:
+        error_result = {
+            "status": "error",
+            "message": f"插件执行异常: {str(e)}",
+            "timestamp": int(time.time()),
+            "params": params
+        }
+        logger.error(f"[MyCustomPlugin] 插件执行异常: {error_result}")
+        return error_result
+```
+
+**步骤 2：在配置文件中添加插件配置**
+
+在 `config/plugin_config.json` 中添加新插件配置：
+
+```json
+{
+  "plugins": {
+    "my_custom_plugin": {
+      "module_path": "plugins.custom_plugins.my_custom_plugin",
+      "function_name": "my_custom_function",
+      "enabled": false,
+      "cron_schedule": "0 4 * * *",
+      "parameters": {
+        "base_url": "https://api.example.com/data",
+        "timeout": 30
+      },
+      "timeout": 300,
+      "max_retries": 3
+    }
+  }
+}
+```
+
+##### 3. 插件开发最佳实践
+
+**插件函数要求：**
+- 函数必须接受一个 `params: dict` 参数
+- 函数必须返回一个结果（通常是字典或列表）
+- 使用项目提供的 `logger` 记录日志
+- 处理异常情况并返回适当的错误信息
+
+**返回值格式：**
+- 通常返回包含 `status` 字段的字典
+- 可以返回数据列表用于进一步处理
+- 错误情况下返回错误信息
+
+**插件类型示例：**
+
+**A. 数据抓取插件**
+```python
+def crawl_data_plugin(params: dict):
+    """数据抓取插件示例"""
+    import requests
+    from subscribe.logger import logger
+    
+    url = params.get("url", "")
+    headers = params.get("headers", {})
+    
+    try:
+        response = requests.get(url, headers=headers)
+        # 处理数据并返回
+        return [{"title": "抓取的数据", "url": url, "content": response.text}]
+    except Exception as e:
+        logger.error(f"抓取失败: {e}")
+        return []
+```
+
+**B. 数据处理插件**
+```python
+def process_data_plugin(params: dict):
+    """数据处理插件示例"""
+    from subscribe.logger import logger
+    
+    input_data = params.get("input_data", [])
+    # 处理数据
+    processed_data = [item for item in input_data if item.get("valid", True)]
+    logger.info(f"处理了 {len(processed_data)} 项数据")
+    return processed_data
+```
+
+**C. 存储插件**
+```python
+def store_data_plugin(params: dict):
+    """存储插件示例"""
+    import json
+    from subscribe.logger import logger
+    
+    data = params.get("data", [])
+    output_path = params.get("output_path", "/aggregator/data/output.json")
+    
+    try:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        logger.info(f"数据已保存到 {output_path}")
+        return {"status": "success", "path": output_path, "count": len(data)}
+    except Exception as e:
+        logger.error(f"保存失败: {e}")
+        return {"status": "error", "message": str(e)}
+```
+
+##### 4. 配置文件参数详解
+
+**plugin_config.json 参数说明：**
+
+| 参数名 | 类型 | 必需 | 说明 |
+|--------|------|------|------|
+| `module_path` | string | 是 | 插件模块的Python导入路径，如 `plugins.exercises.math_exercises` |
+| `function_name` | string | 是 | 插件执行函数的名称 |
+| `enabled` | boolean | 是 | 插件启用状态，true为启用，false为禁用 |
+| `cron_schedule` | string | 否 | 定时执行配置（cron表达式格式），默认不设置 |
+| `parameters` | object | 否 | 传递给插件的参数字典 |
+| `timeout` | integer | 否 | 插件执行超时时间（秒），默认300秒 |
+| `max_retries` | integer | 否 | 最大重试次数，默认3次 |
+
+**cron表达式格式：**
+```
+* * * * * 代表：分钟 小时 日 月 星期
+
+常见示例：
+"0 2 * * *"        # 每天凌晨2点执行
+"*/30 * * * *"      # 每30分钟执行一次
+"0 0 * * 0"         # 每周日凌晨执行
+"0 */6 * * *"       # 每6小时执行一次
+"30 10 * * 1-5"     # 每周一到周五上午10:30执行
+```
+
+##### 5. 插件开发流程
+
+**步骤 1：规划插件功能**
+- 确定插件的用途和功能
+- 设计参数结构
+- 确定返回值格式
+
+**步骤 2：创建插件文件**
+- 在相应插件目录创建文件
+- 实现插件函数
+- 添加错误处理和日志记录
+
+**步骤 3：配置插件**
+- 在 `plugin_config.json` 中添加配置
+- 设置适当的参数和调度
+
+**步骤 4：测试插件**
+- 使用 `python plugin_control.py run plugin_name` 测试
+- 检查日志输出
+- 验证功能正确性
+
+**步骤 5：启用插件**
+- 使用 `python plugin_control.py enable plugin_name` 启用
+- 或直接在配置文件中设置 `"enabled": true`
+
+##### 6. 插件调试技巧
+
+**调试方法：**
+1. 使用 `plugin_control.py run` 命令单独测试插件
+2. 查看日志输出以了解执行过程
+3. 在插件代码中添加调试日志
+4. 检查参数传递是否正确
+
+**常见问题：**
+- 模块路径错误：检查 `module_path` 是否正确
+- 函数名错误：确认 `function_name` 与实际函数名一致
+- 参数错误：验证 `parameters` 格式和内容
+- 依赖问题：确保插件所需依赖已安装
+
+#### 插件配置管理
+
+##### 1. 配置文件结构
+`config/plugin_config.json` 是插件系统的中央配置文件，定义了所有插件的配置。
+
+##### 2. 配置文件管理
+- 可以在运行时修改配置文件
+- 插件系统会自动加载新的配置
+- 修改后可通过控制脚本验证
+
+##### 3. 配置模板参考
+我们提供了 `plugin_config_template.json` 文件作为配置模板，包含各种常见插件类型的示例配置，您可以根据需要进行修改和定制。
+
+##### 4. 快速开始插件开发
+参考 `PLUGIN_QUICK_START.md` 文件，其中包含了：
+- Hello World 插件示例
+- 常用插件模板
+- 配置参数详解
+- 常用cron表达式
+- 调试技巧
+
+##### 5. 批量配置管理
+可以同时管理多个插件的配置：
+```bash
+# 启用多个插件
+python plugin_control.py enable plugin1 plugin2 plugin3
+
+# 查看多个插件状态
+python plugin_control.py status plugin1 plugin2 plugin3
+```
+
 ## 📦 Docker 部署
 
-### 使用预构建镜像
+### 镜像获取
+
+项目镜像已发布到 GitHub Container Registry，您可以直接拉取使用：
 
 ```bash
 # 拉取最新镜像
-docker pull ghcr.io/你的用户名/aggregator:latest
+docker pull ghcr.io/yuanzhou029/aggregatorv2.0:latest
+```
 
-# 运行容器
+### 环境变量配置
+
+运行容器前，需要配置以下环境变量：
+
+| 变量名 | 说明 | 是否必需 | 示例值 |
+|--------|------|----------|--------|
+| `GIST_PAT` | GitHub Personal Access Token | 是 | `ghp_xxxxxxxxxxxxxx` |
+| `GIST_LINK` | Gist ID（格式：用户名/gist_id） | 是 | `username/abc123def456` |
+| `CUSTOMIZE_LINK` | 自定义机场列表 URL | 否 | `https://example.com/list` |
+| `TZ` | 时区 | 否 | `Asia/Shanghai` |
+
+**获取 GitHub Token**：
+1. 访问 GitHub → Settings → Developer settings → Personal access tokens
+2. 生成新 Token，选择 `gist` 权限
+3. 复制生成的 Token
+
+**获取 Gist ID**：
+1. 访问 https://gist.github.com/
+2. 创建或选择一个 Gist
+3. 复制 URL 中的 ID 部分
+
+### 运行方式
+
+#### 方式一：单容器运行
+
+```bash
+# 创建必要的目录
+mkdir -p ./aggregator/{data,config,plugins}
+
+# 运行容器（请将示例值替换为您的实际值）
 docker run -d \
   --name aggregator \
   --restart unless-stopped \
-  -e GIST_PAT=your_github_token \
-  -e GIST_LINK=your_username/your_gist_id \
-  -e CUSTOMIZE_LINK=your_customize_link \
+  -e GIST_PAT=your_github_token_here \
+  -e GIST_LINK=your_username/your_gist_id_here \
+  -e CUSTOMIZE_LINK=your_customize_link_here \
   -e TZ=Asia/Shanghai \
-  -v $(pwd)/data:/aggregator/data \
-  -v $(pwd)/config:/aggregator/config \
-  -v $(pwd)/plugins:/aggregator/plugins \
-  ghcr.io/你的用户名/aggregator:latest
+  -v $(pwd)/aggregator/data:/aggregator/data \
+  -v $(pwd)/aggregator/config:/aggregator/config \
+  -v $(pwd)/aggregator/plugins:/aggregator/plugins \
+  ghcr.io/yuanzhou029/aggregatorv2.0:latest
 ```
 
-### 使用 Docker Compose
+#### 方式二：Docker Compose（推荐）
+
+创建 `docker-compose.yml` 文件：
 
 ```yaml
 version: '3.8'
 
 services:
   aggregator:
-    image: ghcr.io/你的用户名/aggregator:latest  # 使用GitHub Container Registry镜像
+    image: ghcr.io/yuanzhou029/aggregatorv2.0:latest
     container_name: aggregator
     environment:
-      - GIST_PAT=${GIST_PAT:-}
-      - GIST_LINK=${GIST_LINK:-}
-      - CUSTOMIZE_LINK=${CUSTOMIZE_LINK:-}
+      # 必需环境变量 - 请替换为您的实际值
+      - GIST_PAT=your_github_token_here
+      - GIST_LINK=your_username/your_gist_id_here
+      # 可选环境变量
+      - CUSTOMIZE_LINK=your_customize_link_here
       - TZ=Asia/Shanghai
     volumes:
+      # 数据持久化挂载
       - ./data:/aggregator/data
       - ./config:/aggregator/config
       - ./plugins:/aggregator/plugins
@@ -184,6 +490,86 @@ services:
       "main_executor.py"
     ]
 ```
+
+创建目录并启动服务：
+
+```bash
+# 创建必要的目录
+mkdir -p ./data ./config ./plugins ./plugin_manager
+
+# 启动服务
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+```
+
+### 验证部署
+
+```bash
+# 检查容器是否正在运行
+docker ps
+
+# 查看容器日志
+docker logs aggregator
+
+# 进入容器检查
+docker exec -it aggregator bash
+```
+
+### 插件系统管理
+
+容器运行后，可以使用插件控制脚本管理插件：
+
+```bash
+# 进入容器
+docker exec -it aggregator bash
+
+# 查看所有插件状态
+python plugin_control.py list
+
+# 启用插件
+python plugin_control.py enable plugin_name
+
+# 禁用插件
+python plugin_control.py disable plugin_name
+
+# 运行插件
+python plugin_control.py run plugin_name
+
+# 查看插件状态
+python plugin_control.py status plugin_name
+```
+
+### 维护命令
+
+```bash
+# 查看实时日志
+docker logs -f aggregator
+
+# 重启容器
+docker restart aggregator
+
+# 停止容器
+docker stop aggregator
+
+# 启动已停止的容器
+docker start aggregator
+
+# 更新镜像
+docker pull ghcr.io/yuanzhou029/aggregatorv2.0:latest
+```
+
+### 故障排除
+
+1. **容器无法启动**：检查环境变量是否正确设置
+2. **GitHub Token 无效**：确认 Token 具有 `gist` 权限且未过期
+3. **插件不执行**：检查 `config/plugin_config.json` 中插件是否启用
+
+如遇问题，请查看容器日志：`docker logs aggregator`
 
 ## 🚀 GitHub自动构建发布
 
@@ -326,6 +712,10 @@ python subscribe/process.py -s config.json -n 128
 | ---------------------------- | --------------- | ------------------- |
 | [完整文档](README_CN.md)     | 详细配置说明    | 进阶用户            |
 | [English Docs](README_EN.md) | English version | International users |
+| [插件开发指南](PLUGIN_DEVELOPMENT_GUIDE.md) | 插件开发详细说明 | 插件开发者          |
+| [插件快速入门](PLUGIN_QUICK_START.md) | 插件开发快速入门 | 插件开发者          |
+| [配置模板](plugin_config_template.json) | 插件配置示例 | 插件开发者          |
+| [Docker部署指南](DOCKER_DEPLOYMENT_GUIDE.md) | Docker部署详细说明 | 部署运维人员        |
 
 ## 🔧 常见问题
 
