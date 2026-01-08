@@ -21,7 +21,8 @@ WORKDIR /aggregator
 # copy files, only linux related files are needed
 COPY requirements.txt /aggregator
 COPY subscribe /aggregator/subscribe 
-COPY clash/clash-linux-amd clash/Country.mmdb /aggregator/clash
+COPY clash/clash-linux-amd /aggregator/clash
+COPY clash/Country.mmdb /aggregator/clash
 
 COPY subconverter /aggregator/subconverter
 RUN rm -rf subconverter/subconverter-darwin-amd \
@@ -29,8 +30,16 @@ RUN rm -rf subconverter/subconverter-darwin-amd \
     && rm -rf subconverter/subconverter-linux-arm \
     && rm -rf subconverter/subconverter-windows.exe
 
+# copy additional files for plugin system
+COPY plugin_manager /aggregator/plugin_manager
+COPY plugins /aggregator/plugins
+COPY config /aggregator/config
+COPY plugin_control.py /aggregator/plugin_control.py
+COPY main_executor.py /aggregator/main_executor.py
+
 # install dependencies
 RUN pip install -i ${PIP_INDEX_URL} --no-cache-dir -r requirements.txt
 
 # start and run
-CMD ["python", "-u", "subscribe/collect.py", "--all", "--overwrite", "--skip"]
+# Default to run the main executor for plugin system
+CMD ["python", "-u", "main_executor.py"]
