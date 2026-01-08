@@ -5,3 +5,7 @@ pycryptodomex
 fofa-hack
 croniter
 schedule
+flask
+flask-cors
+requests
+flask-login

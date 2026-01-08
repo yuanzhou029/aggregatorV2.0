@@ -1,23 +1,47 @@
 version: '3.8'
 
 services:
-  aggregator:
-    build: .
-    container_name: aggregator
+  aggregator-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aggregator-api
     environment:
+      # 必需环境变量 - 请替换为您的实际值
       - GIST_PAT=${GIST_PAT:-}
       - GIST_LINK=${GIST_LINK:-}
+      # 身份验证配置
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:-}
+      # 可选环境变量
       - CUSTOMIZE_LINK=${CUSTOMIZE_LINK:-}
       - TZ=Asia/Shanghai
     volumes:
+      # 数据持久化挂载
       - ./data:/aggregator/data
-      - ./config:/aggregator/subscribe/config
-      - ./plugins:/aggregator/plugins  # 挂载插件目录
-      - ./plugin_manager:/aggregator/plugin_manager  # 挂载插件管理器
-      - ./config:/aggregator/config  # 挂载配置目录
+      - ./config:/aggregator/config
+      - ./plugins:/aggregator/plugins
+      - ./plugin_manager:/aggregator/plugin_manager
+    ports:
+      - "5000:5000"  # API 端口
+      - "14047:3000" # 前端UI端口
     restart: unless-stopped
     command: [
       "python", 
       "-u", 
-      "main_executor.py"
+      "start_ui.py",
+      "--mode", 
+      "prod"
     ]
+
+  # 如果需要独立的前端服务，可以取消注释以下配置
+  # aggregator-frontend:
+  #   build:
+  #     context: ./web
+  #     dockerfile: Dockerfile.frontend
+  #   container_name: aggregator-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - aggregator-api
+  #   restart: unless-stopped

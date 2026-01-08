@@ -61,6 +61,14 @@ python subscribe/collect.py \
 ### 精细化插件管理系统
 新版本支持精细化插件管理，可精确控制每个插件的启用/禁用和定时执行。
 
+### Web UI 界面
+
+该项目提供了一个现代化的 Web 界面，让您可以通过图形化界面轻松管理插件和配置。
+
+### 身份验证
+
+系统包含安全的身份验证功能，需要登录后才能访问管理界面。默认凭据为 admin/admin123。
+
 #### 系统概述
 精细化插件管理系统允许您精确控制每个插件的启用/禁用和定时执行。系统采用模块化设计，支持插件热加载和动态管理。
 
@@ -716,6 +724,10 @@ python subscribe/process.py -s config.json -n 128
 | [插件快速入门](PLUGIN_QUICK_START.md) | 插件开发快速入门 | 插件开发者          |
 | [配置模板](plugin_config_template.json) | 插件配置示例 | 插件开发者          |
 | [Docker部署指南](DOCKER_DEPLOYMENT_GUIDE.md) | Docker部署详细说明 | 部署运维人员        |
+| [Web UI使用指南](WEB_UI_GUIDE.md) | Web UI界面使用说明 | 所有用户            |
+| [安全配置指南](SECURITY_GUIDE.md) | 系统安全配置说明 | 系统管理员          |
+| [Docker一键安装](DOCKER_INSTALL_GUIDE.md) | Docker一键安装部署指南 | 所有用户            |
+| [本地运行指南](LOCAL_RUN_GUIDE.md) | 本地开发运行说明 | 开发者            |
 
 ## 🔧 常见问题
 

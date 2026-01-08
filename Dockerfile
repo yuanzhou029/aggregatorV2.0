@@ -37,9 +37,36 @@ COPY config /aggregator/config
 COPY plugin_control.py /aggregator/plugin_control.py
 COPY main_executor.py /aggregator/main_executor.py
 
+# copy additional files for UI
+COPY api /aggregator/api
+COPY web /aggregator/web
+COPY start_ui.py /aggregator/start_ui.py
+COPY plugin_manager /aggregator/plugin_manager
+
 # install dependencies
 RUN pip install -i ${PIP_INDEX_URL} --no-cache-dir -r requirements.txt
 
+# install Node.js and npm
+RUN apt-get update && apt-get install -y curl python3-dev gcc && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
+
+# install python packages for api
+RUN pip install flask flask-cors
+
+# build frontend
+WORKDIR /aggregator/web
+RUN npm install && npm run build
+
+WORKDIR /aggregator
+
 # start and run
-# Default to run the main executor for plugin system
-CMD ["python", "-u", "main_executor.py"]
+# Default to run the UI service
+EXPOSE 5000
+EXPOSE 3000
+EXPOSE 14047
+
+# Copy built frontend to static directory
+RUN mkdir -p /aggregator/frontend_static && cp -r /aggregator/frontend_dist/* /aggregator/frontend_static/ 2>/dev/null || echo "Frontend build not found, skipping"
+
+CMD ["python", "-u", "start_ui.py", "--mode", "prod"]
