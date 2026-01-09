@@ -57,7 +57,11 @@ class TemporaryMail(object):
     def get_messages(self, account: Account) -> list:
         raise NotImplementedError
 
-    def monitor_account(self, account: Account, timeout: int = 300, sleep: int = 3) -> Message:
+    def monitor_account(
+            self,
+            account: Account,
+            timeout: int = 300,
+            sleep: int = 3) -> Message:
         """keep waiting for new messages"""
         if not account:
             return None
@@ -80,8 +84,10 @@ class TemporaryMail(object):
                 return None
 
             return messages[0]
-        except:
-            logger.error(f"cannot get any message from address: {account.address}")
+        except BaseException:
+            logger.error(
+                f"cannot get any message from address: {
+                    account.address}")
             return None
 
     def delete_account(self, account: Account) -> bool:
@@ -94,8 +100,9 @@ class TemporaryMail(object):
             # return "".join(re.findall(regex, text))
             masks = re.findall(regex, text)
             return masks[0] if masks else ""
-        except:
-            logger.error(f"[MaskExtractError] regex exists problems, regex: {regex}")
+        except BaseException:
+            logger.error(
+                f"[MaskExtractError] regex exists problems, regex: {regex}")
             return ""
 
     def generate_address(self, bits: int = 10) -> str:
@@ -103,7 +110,9 @@ class TemporaryMail(object):
         username = utils.random_chars(length=bits, punctuation=False).lower()
         email_domains = self.get_domains_list()
         if not email_domains:
-            logger.error(f"[MailTMError] cannot found any email domains from remote, domain: {self.api_address}")
+            logger.error(
+                f"[MailTMError] cannot found any email domains from remote, domain: {
+                    self.api_address}")
             return ""
 
         domain = random.choice(email_domains)
@@ -127,13 +136,15 @@ class RootSh(TemporaryMail):
         while not content and count <= 3:
             count += 1
             try:
-                request = urllib.request.Request(url=self.api_address, headers=self.headers)
-                response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+                request = urllib.request.Request(
+                    url=self.api_address, headers=self.headers)
+                response = urllib.request.urlopen(
+                    request, timeout=10, context=utils.CTX)
                 content = response.read()
                 self.headers["Cookie"] = response.getheader("Set-Cookie")
                 try:
                     content = str(content, encoding="utf8")
-                except:
+                except BaseException:
                     content = gzip.decompress(content).decode("utf8")
             except Exception:
                 pass
@@ -141,7 +152,9 @@ class RootSh(TemporaryMail):
         if not content:
             return []
 
-        return re.findall(r'<li><a\s+href="javascript:;">([a-zA-Z0-9\.\-]+)</a></li>', content)
+        return re.findall(
+            r'<li><a\s+href="javascript:;">([a-zA-Z0-9\.\-]+)</a></li>',
+            content)
 
     def get_account(self, retry: int = 3) -> Account:
         address = self.generate_address(random.randint(6, 12))
@@ -155,15 +168,17 @@ class RootSh(TemporaryMail):
                 "Accept": "application/json, text/javascript, */*; q=0.01",
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                 "Origin": self.api_address,
-                "Referer": f"{self.api_address}/",
-            }
-        )
+                "Referer": f"{
+                    self.api_address}/",
+            })
 
         try:
             data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-            request = urllib.request.Request(url, data=data, headers=self.headers, method="POST")
+            request = urllib.request.Request(
+                url, data=data, headers=self.headers, method="POST")
 
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             if response.getcode() == 200:
                 success = json.loads(response.read()).get("success", "false")
                 if success == "true":
@@ -173,11 +188,9 @@ class RootSh(TemporaryMail):
             else:
                 logger.error(
                     "[MailTMError] cannot create email account, domain: {}\tmessage: {}".format(
-                        self.api_address, response.read().decode("UTF8")
-                    )
-                )
+                        self.api_address, response.read().decode("UTF8")))
                 return None
-        except:
+        except BaseException:
             return self.get_account(retry=retry - 1)
 
     def get_messages(self, account: Account) -> list:
@@ -195,9 +208,11 @@ class RootSh(TemporaryMail):
         messages = []
         try:
             data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-            request = urllib.request.Request(url, data=data, headers=self.headers, method="POST")
+            request = urllib.request.Request(
+                url, data=data, headers=self.headers, method="POST")
 
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             if response.getcode() == 200:
                 data = json.loads(response.read())
                 success = data.get("success", "false")
@@ -206,7 +221,8 @@ class RootSh(TemporaryMail):
                     for mail in emails:
                         sender = {mail[1]: f"{mail[0]}<{mail[1]}>"}
                         subject = mail[2]
-                        address = account.address.replace("@", "(a)").replace(".", "-_-")
+                        address = account.address.replace(
+                            "@", "(a)").replace(".", "-_-")
 
                         # return 403: Forbidden and cannot found reason
                         url = f"{self.api_address}/win/{address}/{mail[4]}"
@@ -229,10 +245,11 @@ class RootSh(TemporaryMail):
                         )
             else:
                 logger.info(
-                    f"[MailTMError] cannot get mail list from domain: {self.api_address}, email: {account.address}"
-                )
+                    f"[MailTMError] cannot get mail list from domain: {
+                        self.api_address}, email: {
+                        account.address}")
                 messages = []
-        except:
+        except BaseException:
             messages = []
 
         return messages
@@ -244,16 +261,20 @@ class RootSh(TemporaryMail):
 
         try:
             data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-            request = urllib.request.Request(url, data=data, headers=self.headers, method="POST")
+            request = urllib.request.Request(
+                url, data=data, headers=self.headers, method="POST")
 
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             if response.getcode() == 200:
                 success = json.loads(response.read()).get("success", "false")
                 return success == "true"
             else:
-                logger.info(f"[MailTMError] delete account {account.address} failed")
+                logger.info(
+                    f"[MailTMError] delete account {
+                        account.address} failed")
                 return False
-        except:
+        except BaseException:
             return False
 
 
@@ -315,8 +336,11 @@ class SnapMail(TemporaryMail):
                 )
 
             return messages
-        except:
-            logger.error(f"[MailTMError] cannot get messages, domain: {self.api_address}, address: {account.address}")
+        except BaseException:
+            logger.error(
+                f"[MailTMError] cannot get messages, domain: {
+                    self.api_address}, address: {
+                    account.address}")
             return []
 
     def delete_account(self, account: Account) -> bool:
@@ -343,7 +367,10 @@ class SnapMail(TemporaryMail):
         #     )
         #     return False
 
-        logger.info(f"[MailTMError] not support delete account, domain: {self.api_address}, address: {account.address}")
+        logger.info(
+            f"[MailTMError] not support delete account, domain: {
+                self.api_address}, address: {
+                account.address}")
         return False
 
 
@@ -400,11 +427,13 @@ class LinShiEmail(TemporaryMail):
                     )
                 )
             return messages
-        except:
+        except BaseException:
             return []
 
     def delete_account(self, account: Account) -> bool:
-        logger.info(f"[MailTMError] not support delete account, domain: {self.api_address}")
+        logger.info(
+            f"[MailTMError] not support delete account, domain: {
+                self.api_address}")
         return True
 
 
@@ -418,21 +447,32 @@ class MailTM(TemporaryMail):
     def get_domains_list(self) -> list:
         headers = {"Accept": "application/ld+json"}
         try:
-            content = utils.http_get(url=f"{self.api_address}/domains?page=1", headers=headers)
+            content = utils.http_get(
+                url=f"{
+                    self.api_address}/domains?page=1",
+                headers=headers)
             if not content:
                 return []
 
             response = json.loads(content)
-            return list(map(lambda x: x.get("domain", ""), response.get("hydra:member", [])))
-        except:
+            return list(map(lambda x: x.get("domain", ""),
+                        response.get("hydra:member", [])))
+        except BaseException:
             return []
 
-    def _make_account_request(self, endpoint: str, address: str, password: str, retry: int = 3) -> Dict:
+    def _make_account_request(
+            self,
+            endpoint: str,
+            address: str,
+            password: str,
+            retry: int = 3) -> Dict:
         if retry <= 0:
             return {}
 
         account = {"address": address, "password": password}
-        headers = {"Accept": "application/ld+json", "Content-Type": "application/json"}
+        headers = {
+            "Accept": "application/ld+json",
+            "Content-Type": "application/json"}
 
         data = bytes(json.dumps(account), encoding="UTF8")
         try:
@@ -442,18 +482,29 @@ class MailTM(TemporaryMail):
                 headers=headers,
                 method="POST",
             )
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             if not response or response.getcode() not in [200, 201]:
                 return {}
 
             return json.loads(response.read())
-        except:
-            return self._make_account_request(endpoint=endpoint, address=address, password=password, retry=retry - 1)
+        except BaseException:
+            return self._make_account_request(
+                endpoint=endpoint,
+                address=address,
+                password=password,
+                retry=retry - 1)
 
     def _generate_jwt(self, address: str, password: str, retry: int = 3):
-        jwt = self._make_account_request(endpoint="token", address=address, password=password, retry=retry)
+        jwt = self._make_account_request(
+            endpoint="token",
+            address=address,
+            password=password,
+            retry=retry)
         if not jwt:
-            logger.error(f"[JWTError] generate jwt token failed, domain: {self.api_address}")
+            logger.error(
+                f"[JWTError] generate jwt token failed, domain: {
+                    self.api_address}")
             return
 
         self.auth_headers = {
@@ -468,13 +519,24 @@ class MailTM(TemporaryMail):
         if not address:
             return None
 
-        password = utils.random_chars(length=random.randint(8, 16), punctuation=True)
-        response = self._make_account_request(endpoint="accounts", address=address, password=password, retry=retry)
+        password = utils.random_chars(
+            length=random.randint(
+                8, 16), punctuation=True)
+        response = self._make_account_request(
+            endpoint="accounts",
+            address=address,
+            password=password,
+            retry=retry)
         if not response or "id" not in response or "address" not in response:
-            logger.error(f"[MailTMError] failed to create temporary email, domain: {self.api_address}")
+            logger.error(
+                f"[MailTMError] failed to create temporary email, domain: {
+                    self.api_address}")
             return None
 
-        account = Account(address=response["address"], password=password, id=response["id"])
+        account = Account(
+            address=response["address"],
+            password=password,
+            id=response["id"])
         self._generate_jwt(address=address, password=password, retry=retry)
 
         return account
@@ -519,7 +581,7 @@ class MailTM(TemporaryMail):
                         data=message_data,
                     )
                 )
-        except:
+        except BaseException:
             logger.error(f"failed to list messages, email: {self.address}")
         return messages
 
@@ -534,11 +596,15 @@ class MailTM(TemporaryMail):
                 headers=self.auth_headers,
                 method="DELETE",
             )
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             status_code = response.getcode()
             return status_code == 204
         except Exception:
-            logger.info(f"[MailTMError] delete account failed, domain: {self.api_address}, address: {account.address}")
+            logger.info(
+                f"[MailTMError] delete account failed, domain: {
+                    self.api_address}, address: {
+                    account.address}")
             return False
 
 
@@ -571,9 +637,15 @@ class MOAKT(TemporaryMail):
         if not content:
             return []
 
-        return re.findall(r'<option\s+value=".*">@([a-zA-Z0-9\.\-_]+)<\/option>', content)
+        return re.findall(
+            r'<option\s+value=".*">@([a-zA-Z0-9\.\-_]+)<\/option>',
+            content)
 
-    def _make_account_request(self, username: str, domain: str, retry: int = 3) -> Account:
+    def _make_account_request(
+            self,
+            username: str,
+            domain: str,
+            retry: int = 3) -> Account:
         if retry <= 0:
             return None
 
@@ -600,8 +672,9 @@ class MOAKT(TemporaryMail):
 
             self.headers["Cookie"] = response.getheader("Set-Cookie")
             return Account(address=f"{username}@{domain}")
-        except:
-            return self._make_account_request(username=username, domain=domain, retry=retry - 1)
+        except BaseException:
+            return self._make_account_request(
+                username=username, domain=domain, retry=retry - 1)
 
     def get_account(self, retry: int = 3) -> Account:
         address = self.generate_address(bits=random.randint(6, 12))
@@ -609,14 +682,18 @@ class MOAKT(TemporaryMail):
             return None
 
         username, domain = address.split("@", maxsplit=1)
-        return self._make_account_request(username=username, domain=domain, retry=retry)
+        return self._make_account_request(
+            username=username, domain=domain, retry=retry)
 
     def get_messages(self, account: Account) -> list:
         if not account:
             return []
 
         messages = []
-        content = utils.http_get(url=f"{self.api_address}/inbox", headers=self.headers)
+        content = utils.http_get(
+            url=f"{
+                self.api_address}/inbox",
+            headers=self.headers)
         if not content:
             return messages
 
@@ -636,7 +713,10 @@ class MOAKT(TemporaryMail):
         if not account:
             return False
 
-        utils.http_get(url=f"{self.api_address}/inbox/logout", headers=self.headers)
+        utils.http_get(
+            url=f"{
+                self.api_address}/inbox/logout",
+            headers=self.headers)
         return True
 
 
@@ -656,23 +736,34 @@ class Emailnator(TemporaryMail):
 
     def get_domains_list(self) -> list:
         # unable to obtain the supported email domain through web api
-        return ["gmail.com", "googlemail.com", "smartnator.com", "psnator.com", "tmpmailtor.com", "mydefipet.live"]
+        return [
+            "gmail.com",
+            "googlemail.com",
+            "smartnator.com",
+            "psnator.com",
+            "tmpmailtor.com",
+            "mydefipet.live"]
 
     def _get_xsrf_token(self, retry: int = 3) -> tuple[str, str]:
         cookies, xsrf_token, count = "", "", 1
         while not cookies and count <= retry:
             count += 1
             try:
-                request = urllib.request.Request(url=self.api_address, headers=self.headers)
-                response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+                request = urllib.request.Request(
+                    url=self.api_address, headers=self.headers)
+                response = urllib.request.urlopen(
+                    request, timeout=10, context=utils.CTX)
 
                 cookies = response.getheader("Set-Cookie")
                 groups = re.findall("XSRF-TOKEN=(.+?);", cookies)
                 xsrf_token = groups[0] if groups else ""
-                xsrf_token = urllib.parse.unquote(xsrf_token, encoding="utf8", errors="replace")
+                xsrf_token = urllib.parse.unquote(
+                    xsrf_token, encoding="utf8", errors="replace")
 
-                groups = re.findall("(XSRF-TOKEN|gmailnator_session)=(.+?);", cookies)
-                cookies = ";".join(["=".join(x) for x in groups]).strip() if groups else cookies
+                groups = re.findall(
+                    "(XSRF-TOKEN|gmailnator_session)=(.+?);", cookies)
+                cookies = ";".join(["=".join(x) for x in groups]
+                                   ).strip() if groups else cookies
             except Exception:
                 pass
 
@@ -682,25 +773,33 @@ class Emailnator(TemporaryMail):
         cookie, xsrf_token = self._get_xsrf_token(retry=3)
         if retry <= 0 or not cookie or not xsrf_token:
             logger.error(
-                f"[EmailnatorError] cannot create account because cannot get cookies or xsrf_token or archieved max retry, domain: {self.api_address}"
-            )
+                f"[EmailnatorError] cannot create account because cannot get cookies or xsrf_token or archieved max retry, domain: {
+                    self.api_address}")
             return None
 
         self.headers["Cookie"] = cookie
         self.headers["X-XSRF-TOKEN"] = xsrf_token
 
         url = f"{self.api_address}/generate-email"
-        params = ["plusGmail", "dotGmail"] if self.only_gmail else ["domain", "plusGmail", "dotGmail", "googleMail"]
+        params = [
+            "plusGmail",
+            "dotGmail"] if self.only_gmail else [
+            "domain",
+            "plusGmail",
+            "dotGmail",
+            "googleMail"]
 
         try:
             data = bytes(json.dumps({"email": params}), "UTF8")
-            request = urllib.request.Request(url, data=data, headers=self.headers, method="POST")
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            request = urllib.request.Request(
+                url, data=data, headers=self.headers, method="POST")
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             if response.getcode() == 200:
                 content = response.read()
                 try:
                     content = str(content, encoding="utf8")
-                except:
+                except BaseException:
                     content = gzip.decompress(content).decode("utf8")
 
                 emails = json.loads(content).get("email", [])
@@ -708,11 +807,9 @@ class Emailnator(TemporaryMail):
             else:
                 logger.error(
                     "[EmailnatorError] cannot create email account, domain: {}\tmessage: {}".format(
-                        self.api_address, response.read().decode("UTF8")
-                    )
-                )
+                        self.api_address, response.read().decode("UTF8")))
                 return None
-        except:
+        except BaseException:
             return self.get_account(retry=retry - 1)
 
     def get_messages(self, account: Account) -> list:
@@ -730,7 +827,8 @@ class Emailnator(TemporaryMail):
                 if not utils.isb64encode(content=messageid, padding=False):
                     continue
 
-                content = self._get_messages(address=account.address, messageid=messageid)
+                content = self._get_messages(
+                    address=account.address, messageid=messageid)
                 messages.append(
                     Message(
                         subject=data.get("subject", ""),
@@ -741,14 +839,18 @@ class Emailnator(TemporaryMail):
                     )
                 )
             return messages
-        except:
+        except BaseException:
             return []
 
-    def _get_messages(self, address: str, messageid: str = "", retry: int = 3) -> str:
+    def _get_messages(
+            self,
+            address: str,
+            messageid: str = "",
+            retry: int = 3) -> str:
         if not address or retry <= 0:
             logger.error(
-                f"[EmailnatorError] cannot list messages because address is empty or archieved max retry, domain: {self.api_address}"
-            )
+                f"[EmailnatorError] cannot list messages because address is empty or archieved max retry, domain: {
+                    self.api_address}")
             return ""
 
         url = f"{self.api_address}/message-list"
@@ -758,22 +860,29 @@ class Emailnator(TemporaryMail):
 
         try:
             data = data = bytes(json.dumps(params), "UTF8")
-            request = urllib.request.Request(url, data=data, headers=self.headers, method="POST")
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            request = urllib.request.Request(
+                url, data=data, headers=self.headers, method="POST")
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             content = ""
             if response.getcode() == 200:
                 content = response.read()
                 try:
                     content = str(content, encoding="utf8")
-                except:
+                except BaseException:
                     content = gzip.decompress(content).decode("utf8")
 
             return content
-        except:
-            return self._get_messages(address=address, messageid=messageid, retry=retry - 1)
+        except BaseException:
+            return self._get_messages(
+                address=address,
+                messageid=messageid,
+                retry=retry - 1)
 
     def delete_account(self, account: Account) -> bool:
-        logger.info(f"[EmailnatorError] not support delete account, domain: {self.api_address}")
+        logger.info(
+            f"[EmailnatorError] not support delete account, domain: {
+                self.api_address}")
         return True
 
 

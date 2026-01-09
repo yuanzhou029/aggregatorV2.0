@@ -45,27 +45,31 @@ def extract_domain(url) -> str:
     if end == -1:
         end = len(url) - 1
 
-    return url[start + 2 : end]
+    return url[start + 2: end]
 
 
-def login(url: str, params: dict, headers: dict, retry: int = 3) -> tuple[str, str]:
+def login(url: str, params: dict, headers: dict,
+          retry: int = 3) -> tuple[str, str]:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
 
         response = urllib.request.urlopen(request, timeout=10, context=CTX)
         cookies, authorization = "", ""
         if response.getcode() == 200:
             cookies = response.getheader("Set-Cookie")
             try:
-                data = json.loads(response.read().decode("UTF8")).get("data", {})
+                data = json.loads(
+                    response.read().decode("UTF8")).get(
+                    "data", {})
                 authorization = data.get("auth_data", "")
-            except:
+            except BaseException:
                 pass
 
         return cookies, authorization
 
-    except:
+    except BaseException:
         retry -= 1
 
         if retry > 0:
@@ -77,7 +81,8 @@ def login(url: str, params: dict, headers: dict, retry: int = 3) -> tuple[str, s
 def order(url, params, headers, retry) -> str:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
 
         response = urllib.request.urlopen(request, timeout=10, context=CTX)
         trade_no = ""
@@ -130,7 +135,8 @@ def fetch(url, headers, retry) -> str:
 def payment(url, params, headers, retry) -> bool:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
 
         response = urllib.request.urlopen(request, timeout=10, context=CTX)
         success = False
@@ -156,7 +162,8 @@ def payment(url, params, headers, retry) -> bool:
 def check(url, params, headers, retry) -> bool:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
 
         response = urllib.request.urlopen(request, timeout=10, context=CTX)
         success = False
@@ -197,7 +204,7 @@ def config_load(filename) -> dict:
     try:
         config = open(filename, "r").read()
         return json.loads(config)
-    except:
+    except BaseException:
         return None
 
 
@@ -258,7 +265,9 @@ def flow(domain, params, headers, reset, retry) -> bool:
 
     if coupon:
         check_url = domain + params.get("check", "/api/v1/user/coupon/check")
-        result = check(check_url, {"code": coupon, "plan_id": plan_id}, headers, retry)
+        result = check(
+            check_url, {
+                "code": coupon, "plan_id": plan_id}, headers, retry)
         if not result:
             print("failed to renewal because coupon is valid")
             return False
@@ -272,7 +281,10 @@ def flow(domain, params, headers, reset, retry) -> bool:
 
     payload = {"trade_no": trade_no, "method": method}
     success = payment(payment_url, payload, headers, retry)
-    print("renewal {}, domain: {}".format("success" if success else "fail", domain))
+    print(
+        "renewal {}, domain: {}".format(
+            "success" if success else "fail",
+            domain))
     return success
 
 
@@ -289,7 +301,11 @@ def main(config: dict, reset: bool, retry: int) -> None:
     for args in params:
         flag = args.get("renewal", True)
         if not flag:
-            print("skip renewal, domain: {}".format(args.get("domain", "").strip()))
+            print(
+                "skip renewal, domain: {}".format(
+                    args.get(
+                        "domain",
+                        "").strip()))
             continue
 
         wrapper(args, reset, retry)
@@ -351,7 +367,8 @@ if __name__ == "__main__":
 
         delay = randint(0, 60 * args.sleep)
         if i != args.num - 1:
-            print(f"{i+1}th renewal complete, {delay} second wait for next run", end="\n\n")
+            print(
+                f"{i + 1}th renewal complete, {delay} second wait for next run", end="\n\n")
             time.sleep(delay)
 
     print(f"all {args.num} renewals are completed")

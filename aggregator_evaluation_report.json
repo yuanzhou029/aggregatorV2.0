@@ -1,0 +1,101 @@
+{
+  "timestamp": "2026-01-09T12:19:55.946135",
+  "tests": {
+    "file_structure": {
+      "passed": false,
+      "message": "缺少目录: aggregator/plugin_manager, aggregator/api, aggregator/config, aggregator/subscribe/scripts, aggregator/web",
+      "details": {
+        "missing": [
+          "aggregator/plugin_manager",
+          "aggregator/api",
+          "aggregator/config",
+          "aggregator/subscribe/scripts",
+          "aggregator/web"
+        ]
+      }
+    },
+    "dependencies": {
+      "passed": true,
+      "message": "所有必需的依赖包已安装",
+      "details": {}
+    },
+    "plugin_manager_init": {
+      "passed": true,
+      "message": "成功初始化，加载了 15 个插件",
+      "details": {}
+    },
+    "plugin_config_loading": {
+      "passed": true,
+      "message": "所有插件配置格式正确",
+      "details": {}
+    },
+    "plugin_module_existence": {
+      "passed": true,
+      "message": "所有插件模块可正常导入",
+      "details": {}
+    },
+    "plugin_enable_disable": {
+      "passed": true,
+      "message": "插件启用/禁用功能正常",
+      "details": {}
+    },
+    "config_validation": {
+      "passed": true,
+      "message": "配置验证功能正常",
+      "details": {}
+    },
+    "system_config_validation": {
+      "passed": true,
+      "message": "系统配置验证功能正常",
+      "details": {}
+    },
+    "plugin_config_persistence": {
+      "passed": true,
+      "message": "配置持久化功能正常",
+      "details": {}
+    },
+    "api_endpoints_definition": {
+      "passed": false,
+      "message": "缺少API端点: /api/login, /api/logout, /api/plugins, /api/status, /api/config/plugin",
+      "details": {
+        "missing": [
+          "/api/login",
+          "/api/logout",
+          "/api/plugins",
+          "/api/status",
+          "/api/config/plugin"
+        ]
+      }
+    },
+    "cache_mechanism": {
+      "passed": true,
+      "message": "缓存机制工作正常",
+      "details": {}
+    },
+    "rate_limiting": {
+      "passed": true,
+      "message": "限流机制配置正常: {'login': {'max_requests': 5, 'window': 300}, 'default': {'max_requests': 100, 'window': 60}}",
+      "details": {}
+    },
+    "authentication_mechanism": {
+      "passed": true,
+      "message": "身份验证机制配置正常",
+      "details": {}
+    },
+    "logger_functionality": {
+      "passed": true,
+      "message": "日志功能正常",
+      "details": {}
+    }
+  },
+  "issues": [
+    "file_structure: 缺少目录: aggregator/plugin_manager, aggregator/api, aggregator/config, aggregator/subscribe/scripts, aggregator/web",
+    "api_endpoints_definition: 缺少API端点: /api/login, /api/logout, /api/plugins, /api/status, /api/config/plugin"
+  ],
+  "summary": {
+    "total_tests": 14,
+    "passed": 12,
+    "failed": 2,
+    "success_rate": "85.7%"
+  }
+}

@@ -42,7 +42,8 @@ def convert(chars: bytes) -> list:
     try:
         contents = json.loads(chars).get("nodeinfo", None)
         if not contents:
-            logger.error(f"[ScanerConvertError] cannot fetch node list, response: {chars}")
+            logger.error(
+                f"[ScanerConvertError] cannot fetch node list, response: {chars}")
             return []
 
         nodes_muport = contents["nodes_muport"]
@@ -69,7 +70,7 @@ def convert(chars: bytes) -> list:
                     result = parse_vmess(node["raw_node"], uuid)
                     if result:
                         arrays.append(result)
-                except:
+                except BaseException:
                     pass
         return arrays
     except Exception as e:
@@ -105,7 +106,7 @@ def parse_vmess(node: dict, uuid: str) -> dict:
     if len(items) > 5:
         obfs = items[5]
         opts = {}
-        if obfs != None and obfs.strip() != "":
+        if obfs is not None and obfs.strip() != "":
             for s in obfs.split("|"):
                 words = s.split("=")
                 if len(words) != 2:
@@ -131,18 +132,22 @@ def parse_vmess(node: dict, uuid: str) -> dict:
 def login(url, params, headers, retry) -> str:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
 
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
         if response.getcode() == 200:
             return response.getheader("Set-Cookie")
         else:
             logger.info(
-                "[ScanerLoginError] domain: {}, message: {}".format(url, response.read().decode("unicode_escape"))
-            )
+                "[ScanerLoginError] domain: {}, message: {}".format(
+                    url, response.read().decode("unicode_escape")))
             return ""
     except Exception as e:
-        logger.error("[ScanerLoginError] doamin: {}, message: {}".format(url, str(e)))
+        logger.error(
+            "[ScanerLoginError] doamin: {}, message: {}".format(
+                url, str(e)))
 
         retry -= 1
         return login(url, params, headers, retry) if retry > 0 else ""
@@ -151,9 +156,11 @@ def login(url, params, headers, retry) -> str:
 def register(url: str, params: dict, retry: int) -> bool:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, method="POST", headers=HEADER)
+        request = urllib.request.Request(
+            url, data=data, method="POST", headers=HEADER)
 
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
         if response.getcode() == 200:
             content = response.read()
             kv = json.loads(content)
@@ -161,11 +168,13 @@ def register(url: str, params: dict, retry: int) -> bool:
                 return True
 
         logger.debug(
-            "[ScanerRegisterError] domain: {}, message: {}".format(url, response.read().decode("unicode_escape"))
-        )
+            "[ScanerRegisterError] domain: {}, message: {}".format(
+                url, response.read().decode("unicode_escape")))
         return False
     except Exception as e:
-        logger.error("[ScanerRegisterError] domain: {}, message: {}".format(url, str(e)))
+        logger.error(
+            "[ScanerRegisterError] domain: {}, message: {}".format(
+                url, str(e)))
 
         retry -= 1
         return register(url, params, retry) if retry > 0 else False
@@ -208,7 +217,8 @@ def fetch_nodes(
         try:
             url = f"{domain}/getuserinfo" if subflag else f"{domain}/getnodelist"
             request = urllib.request.Request(url=url, headers=headers)
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
             if response.getcode() == 200:
                 content = response.read()
                 break
@@ -219,7 +229,9 @@ def fetch_nodes(
                     )
                 )
         except Exception as e:
-            logger.error("[ScanerFetchError] domain: {}, message: {}".format(domain, str(e)))
+            logger.error(
+                "[ScanerFetchError] domain: {}, message: {}".format(
+                    domain, str(e)))
 
     return content
 
@@ -230,7 +242,7 @@ def check(domain: str) -> bool:
         if content:
             data = json.loads(content)
             return "ret" in data and data["ret"] == -1
-    except:
+    except BaseException:
         pass
 
     return False
@@ -255,28 +267,42 @@ def get_payload(email: str, passwd: str) -> dict:
 
 def scanone(domain: str, email: str, passwd: str) -> list:
     # 获取机场所有节点信息
-    content = get_userinfo(domain=domain, email=email, passwd=passwd, subflag=False, verify=True)
+    content = get_userinfo(
+        domain=domain,
+        email=email,
+        passwd=passwd,
+        subflag=False,
+        verify=True)
 
     # 解析节点
     proxies = convert(content)
 
-    logger.info("[ScanerInfo] found {} nodes, domain: {}".format(len(proxies), domain))
+    logger.info(
+        "[ScanerInfo] found {} nodes, domain: {}".format(
+            len(proxies), domain))
     return proxies
 
 
 def getsub(domain: str, email: str, passwd: str) -> str:
     # 获取用户信息
-    content = get_userinfo(domain=domain, email=email, passwd=passwd, subflag=True, verify=False)
+    content = get_userinfo(
+        domain=domain,
+        email=email,
+        passwd=passwd,
+        subflag=True,
+        verify=False)
 
     if content is None or b"" == content:
-        logger.error("[ScanerInfo] cannot found subscribe url, domain: {}".format(domain))
+        logger.error(
+            "[ScanerInfo] cannot found subscribe url, domain: {}".format(domain))
         return ""
     try:
         data = json.loads(content).get("info", {})
         suburl = data.get("subUrl", "")
         subtoken = data.get("ssrSubToken", "")
         if utils.isblank(suburl) or utils.isblank(subtoken):
-            logger.error("[ScanerInfo] subUrl or subToken is empty, domain: {}".format(domain))
+            logger.error(
+                "[ScanerInfo] subUrl or subToken is empty, domain: {}".format(domain))
             return ""
 
         return suburl + subtoken
@@ -285,9 +311,15 @@ def getsub(domain: str, email: str, passwd: str) -> str:
         return ""
 
 
-def get_userinfo(domain: str, email: str, passwd: str, subflag: bool, verify: bool = False) -> str:
+def get_userinfo(
+        domain: str,
+        email: str,
+        passwd: str,
+        subflag: bool,
+        verify: bool = False) -> str:
     if utils.isblank(domain) or utils.isblank(email) or utils.isblank(passwd):
-        logger.error(f"[ScanerError] skip scan because found invalidate arguments, domain: {domain}")
+        logger.error(
+            f"[ScanerError] skip scan because found invalidate arguments, domain: {domain}")
         return ""
 
     # 检测是否符合条件
@@ -303,22 +335,28 @@ def get_userinfo(domain: str, email: str, passwd: str, subflag: bool, verify: bo
         logger.debug("[ScanerInfo] register failed, domain: {}".format(domain))
 
     # 获取机场所有节点信息
-    return fetch_nodes(domain=domain, email=email, passwd=passwd, subflag=subflag)
+    return fetch_nodes(
+        domain=domain,
+        email=email,
+        passwd=passwd,
+        subflag=subflag)
 
 
 def filter_task(tasks: dict) -> list:
-    if not tasks or type(tasks) != dict:
+    if not tasks or not isinstance(tasks, dict):
         return []
 
     configs = []
     for k, v in tasks.items():
         domain = utils.extract_domain(k, include_protocal=True)
-        if not domain or type(v) != dict or not v.pop("enable", True):
+        if not domain or not isinstance(v, dict) or not v.pop("enable", True):
             continue
 
         email, password = v.pop("email", ""), v.pop("password", "")
         if utils.isblank(email) or utils.isblank(password):
-            chars = utils.random_chars(length=random.randint(8, 10), punctuation=False)
+            chars = utils.random_chars(
+                length=random.randint(
+                    8, 10), punctuation=False)
             # email = email if re.match(r"^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$", email) else chars + "@gmail.com"
 
             email = chars + "@gmail.com" if utils.isblank(email) else email
@@ -330,7 +368,7 @@ def filter_task(tasks: dict) -> list:
 
 
 def scan(params: dict) -> list:
-    if not params or type(params) != dict:
+    if not params or not isinstance(params, dict):
         return []
 
     tasks = filter_task(tasks=params.get("tasks", {}))
@@ -340,15 +378,20 @@ def scan(params: dict) -> list:
 
     config = params.get("config", {})
     storage = params.get("storage", {})
-    if not storage or type(storage) != dict:
-        logger.error(f"[ScanerError] cannot scan proxies bcause storage config is invalidate")
+    if not storage or not isinstance(storage, dict):
+        logger.error(
+            f"[ScanerError] cannot scan proxies bcause storage config is invalidate")
         return []
 
     persist = storage.get("items", {})
     pushtool = push.get_instance(config=push.PushConfig.from_dict(storage))
 
-    if not pushtool.validate(config=persist) or not config or type(config) != dict or not config.get("push_to"):
-        logger.error(f"[ScanerError] cannot scan proxies bcause missing some parameters")
+    if not pushtool.validate(
+            config=persist) or not config or not isinstance(
+            config,
+            dict) or not config.get("push_to"):
+        logger.error(
+            f"[ScanerError] cannot scan proxies bcause missing some parameters")
         return []
 
     results = utils.multi_process_run(func=scanone, tasks=tasks)
@@ -358,10 +401,12 @@ def scan(params: dict) -> list:
         pushtool.push_to(content=content, config=persist, group="scaner")
     else:
         domains = ",".join(x[0] for x in tasks)
-        logger.info(f"[ScanerError] cannot found any proxies, domains=[{domains}]")
+        logger.info(
+            f"[ScanerError] cannot found any proxies, domains=[{domains}]")
 
     config["sub"] = [pushtool.raw_url(config=persist)]
-    config["name"] = "loophole" if not config.get("name", "") else config.get("name")
+    config["name"] = "loophole" if not config.get(
+        "name", "") else config.get("name")
     config["push_to"] = list(set(config["push_to"]))
     config["saved"] = True
 

@@ -40,8 +40,13 @@ USER_AGENT = (
 )
 
 
-def http_post(url: str, headers: dict = None, params: dict = {}, retry: int = 3, timeout: float = 6) -> HTTPResponse:
-    if params is None or type(params) != dict:
+def http_post(
+        url: str,
+        headers: dict = None,
+        params: dict = {},
+        retry: int = 3,
+        timeout: float = 6) -> HTTPResponse:
+    if params is None or not isinstance(params, dict):
         return None
 
     timeout, retry = max(timeout, 1), retry - 1
@@ -50,22 +55,37 @@ def http_post(url: str, headers: dict = None, params: dict = {}, retry: int = 3,
         if params and isinstance(params, dict):
             data = urllib.parse.urlencode(params).encode(encoding="utf8")
 
-        request = urllib.request.Request(url=url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url=url, data=data, headers=headers, method="POST")
         return urllib.request.urlopen(request, timeout=timeout, context=CTX)
     except urllib.error.HTTPError as e:
         if retry < 0 or e.code in [400, 401, 405]:
             return None
 
-        return http_post(url=url, headers=headers, params=params, retry=retry, timeout=timeout)
+        return http_post(
+            url=url,
+            headers=headers,
+            params=params,
+            retry=retry,
+            timeout=timeout)
     except (TimeoutError, urllib.error.URLError) as e:
         return None
     except Exception:
         if retry < 0:
             return None
-        return http_post(url=url, headers=headers, params=params, retry=retry, timeout=timeout)
+        return http_post(
+            url=url,
+            headers=headers,
+            params=params,
+            retry=retry,
+            timeout=timeout)
 
 
-def read_response(response: HTTPResponse, expected: int = 200, deserialize: bool = False, key: str = "") -> typing.Any:
+def read_response(
+        response: HTTPResponse,
+        expected: int = 200,
+        deserialize: bool = False,
+        key: str = "") -> typing.Any:
     if not response or not isinstance(response, HTTPResponse):
         return None
 
@@ -75,14 +95,14 @@ def read_response(response: HTTPResponse, expected: int = 200, deserialize: bool
 
     try:
         text = response.read()
-    except:
+    except BaseException:
         text = b""
 
     try:
         content = text.decode(encoding="UTF8")
     except UnicodeDecodeError:
         content = gzip.decompress(text).decode("UTF8")
-    except:
+    except BaseException:
         content = ""
 
     if not deserialize:
@@ -93,18 +113,21 @@ def read_response(response: HTTPResponse, expected: int = 200, deserialize: bool
     try:
         data = json.loads(content)
         return data if not key else data.get(key, None)
-    except:
+    except BaseException:
         return None
 
 
 def trim(text: str) -> str:
-    if not text or type(text) != str:
+    if not text or not isinstance(text, str):
         return ""
 
     return text.strip()
 
 
-def write_file(filename: str, lines: str | list, overwrite: bool = True) -> None:
+def write_file(
+        filename: str,
+        lines: str | list,
+        overwrite: bool = True) -> None:
     if not filename or not lines or type(lines) not in [str, list]:
         return
 
@@ -125,11 +148,15 @@ def write_file(filename: str, lines: str | list, overwrite: bool = True) -> None
 
         # release lock
         FILE_LOCK.release()
-    except:
+    except BaseException:
         print(f"write {lines} to file {filename} failed")
 
 
-def get_cookies(url: str, filepath: str, username: str = "admin", password: str = "admin") -> dict:
+def get_cookies(
+        url: str,
+        filepath: str,
+        username: str = "admin",
+        password: str = "admin") -> dict:
     url = trim(url)
     if not url:
         return None
@@ -147,7 +174,11 @@ def get_cookies(url: str, filepath: str, username: str = "admin", password: str 
     }
 
     response = http_post(url=f"{url}/login", headers=headers, params=data)
-    success = read_response(response=response, expected=200, deserialize=True, key="success")
+    success = read_response(
+        response=response,
+        expected=200,
+        deserialize=True,
+        key="success")
     if not success:
         return None
 
@@ -221,7 +252,11 @@ def download_mmdb(repo: str, target: str, filepath: str, retry: int = 3):
         except Exception:
             count += 1
 
-    assets = read_response(response=response, expected=200, deserialize=True, key="assets")
+    assets = read_response(
+        response=response,
+        expected=200,
+        deserialize=True,
+        key="assets")
     if not assets or not isinstance(assets, list):
         raise Exception("no assets found in github release")
 
@@ -272,8 +307,10 @@ def download(url: str, filepath: str, filename: str, retry: int = 3) -> None:
 
 
 def load_mmdb(
-    directory: str, repo: str = "alecthw/mmdb_china_ip_list", filename: str = "Country.mmdb", update: bool = False
-) -> database.Reader:
+        directory: str,
+        repo: str = "alecthw/mmdb_china_ip_list",
+        filename: str = "Country.mmdb",
+        update: bool = False) -> database.Reader:
     filepath = os.path.join(directory, filename)
     if update or not os.path.exists(filepath) or not os.path.isfile(filepath):
         if not download_mmdb(repo, filename, directory):
@@ -311,22 +348,34 @@ def get_running_state(data: dict) -> RunningState:
     if "uptime" in data["obj"]:
         uptime = data["obj"]["uptime"]
     if "netTraffic" in data["obj"]:
-        sent = convert_bytes_to_readable_unit(data["obj"]["netTraffic"]["sent"])
-        recv = convert_bytes_to_readable_unit(data["obj"]["netTraffic"]["recv"])
+        sent = convert_bytes_to_readable_unit(
+            data["obj"]["netTraffic"]["sent"])
+        recv = convert_bytes_to_readable_unit(
+            data["obj"]["netTraffic"]["recv"])
     if "xray" in data["obj"]:
         state = data["obj"]["xray"]["state"]
         version = data["obj"]["xray"]["version"]
 
-    return RunningState(sent=sent, recv=recv, state=state, version=version, uptime=uptime)
+    return RunningState(
+        sent=sent,
+        recv=recv,
+        state=state,
+        version=version,
+        uptime=uptime)
 
 
-def generate_subscription_links(data: dict, address: str, reader: database.Reader) -> list[tuple[str, str, str]]:
-    if not data or not isinstance(data, dict) or not data.pop("success", False) or not address:
+def generate_subscription_links(
+        data: dict, address: str, reader: database.Reader) -> list[tuple[str, str, str]]:
+    if not data or not isinstance(
+            data, dict) or not data.pop(
+            "success", False) or not address:
         return []
 
     result = list()
     for item in data.get("obj", []):
-        if not item or not isinstance(item, dict) or not item.get("enable", False):
+        if not item or not isinstance(
+                item, dict) or not item.get(
+                "enable", False):
             continue
 
         protocol, port, link = item["protocol"], item["port"], ""
@@ -353,7 +402,8 @@ def generate_subscription_links(data: dict, address: str, reader: database.Reade
             security = stream_settings["security"]
             ws_settings = stream_settings.get("wsSettings", {})
             path = ws_settings.get("path", "/")
-            query = f"type={network}&security={security}&path={parse.quote(path)}"
+            query = f"type={network}&security={security}&path={
+                parse.quote(path)}"
             if flow:
                 if flow != "xtls-rprx-vision":
                     continue
@@ -379,7 +429,9 @@ def generate_subscription_links(data: dict, address: str, reader: database.Reade
                 "path": path,
                 "tls": "",
             }
-            link = f"vmess://{base64.urlsafe_b64encode(json.dumps(vmess_config).encode()).decode().strip('=')}"
+            link = f"vmess://{
+                base64.urlsafe_b64encode(
+                    json.dumps(vmess_config).encode()).decode().strip('=')}"
         elif protocol == "trojan":
             settings = json.loads(item["settings"])
             client_id = settings["clients"][0]["password"]
@@ -389,8 +441,9 @@ def generate_subscription_links(data: dict, address: str, reader: database.Reade
             method = settings["method"]
             password = settings["password"]
             link = (
-                f"ss://{base64.urlsafe_b64encode(f'{method}:{password}@{address}:{port}'.encode()).decode().strip('=')}"
-            )
+                f"ss://{
+                    base64.urlsafe_b64encode(
+                        f'{method}:{password}@{address}:{port}'.encode()).decode().strip('=')}")
 
         if link:
             if remark and protocol != "vmess":
@@ -404,7 +457,7 @@ def generate_subscription_links(data: dict, address: str, reader: database.Reade
 def check(url: str, filepath: str, reader: database.Reader) -> RunningState:
     try:
         address = parse.urlparse(url=url).hostname
-    except:
+    except BaseException:
         print(f"cannot extract host from url: {url}")
         return None
 
@@ -418,7 +471,8 @@ def check(url: str, filepath: str, reader: database.Reader) -> RunningState:
 
         if "appStats" not in status.get("obj", {}):
             inbounds = get_inbound_list(url, headers)
-            running_state.links = generate_subscription_links(data=inbounds, address=address, reader=reader)
+            running_state.links = generate_subscription_links(
+                data=inbounds, address=address, reader=reader)
 
         return running_state
     except Exception:
@@ -443,24 +497,42 @@ def multi_thread_run(
     results, starttime = [None] * len(tasks), time.time()
     with futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         if isinstance(tasks[0], (list, tuple)):
-            collections = {executor.submit(func, *param): i for i, param in enumerate(tasks)}
+            collections = {
+                executor.submit(
+                    func,
+                    *param): i for i,
+                param in enumerate(tasks)}
         else:
-            collections = {executor.submit(func, param): i for i, param in enumerate(tasks)}
+            collections = {
+                executor.submit(
+                    func,
+                    param): i for i,
+                param in enumerate(tasks)}
 
         items = futures.as_completed(collections)
         if show_progress:
             description = trim(description) or "Progress"
-            items = tqdm(items, total=len(collections), desc=description, leave=True)
+            items = tqdm(
+                items,
+                total=len(collections),
+                desc=description,
+                leave=True)
 
         for future in items:
             try:
                 result = future.result()
                 index = collections[future]
                 results[index] = result
-            except:
-                print(f"function {funcname} execution generated an exception, message:\n{traceback.format_exc()}")
+            except BaseException:
+                print(
+                    f"function {funcname} execution generated an exception, message:\n{
+                        traceback.format_exc()}")
 
-    print(f"[Concurrent] execute [{funcname}] finished, count: {len(tasks)}, cost: {time.time()-starttime:.2f}s")
+    print(
+        f"[Concurrent] execute [{funcname}] finished, count: {
+            len(tasks)}, cost: {
+            time.time() -
+            starttime:.2f}s")
     return results
 
 
@@ -479,7 +551,7 @@ def extract_domain(url: str, include_protocal: bool = True) -> str:
     if include_protocal:
         return url[:end]
 
-    return url[start + 2 : end]
+    return url[start + 2: end]
 
 
 def dedup(filepath: str) -> None:
@@ -494,7 +566,8 @@ def dedup(filepath: str) -> None:
 
     def cmp(url: str) -> str:
         x = 1 if include_subpath(url=url) else 0
-        y = 2 if url.startswith("https://") else 1 if url.startswith("http://") else 0
+        y = 2 if url.startswith(
+            "https://") else 1 if url.startswith("http://") else 0
         return (x, y, url)
 
     if not os.path.exists(filepath) or not os.path.isfile(filepath):
@@ -513,9 +586,10 @@ def dedup(filepath: str) -> None:
 
         domain = extract_domain(url=line, include_protocal=False)
         if domain:
-            if not line.startswith("https://") and not line.startswith("http://"):
+            if not line.startswith(
+                    "https://") and not line.startswith("http://"):
                 line = f"http://{line}"
-                
+
             groups[domain].add(line)
 
     # under the same domain name, give priority to URLs starting with https://
@@ -530,7 +604,10 @@ def dedup(filepath: str) -> None:
         links.append(urls[0])
 
     total, remain = len(lines), len(links)
-    print(f"[Check] finished dedup for file: {filepath}, total: {total}, remain: {remain}, drop: {total-remain}")
+    print(
+        f"[Check] finished dedup for file: {filepath}, total: {total}, remain: {remain}, drop: {
+            total -
+            remain}")
 
     write_file(filename=filepath, lines=links, overwrite=True)
 
@@ -549,7 +626,12 @@ def generate_markdown(items: list[RunningState], filepath: str) -> None:
             continue
 
         link = "<br />".join([x[0] for x in item.links])
-        table += f"| {item.state} | {item.version} | {item.uptime} | {item.sent} | {item.recv} | {link} |\n"
+        table += f"| {
+            item.state} | {
+            item.version} | {
+            item.uptime} | {
+                item.sent} | {
+                    item.recv} | {link} |\n"
 
     write_file(filename=filepath, lines=table, overwrite=True)
 
@@ -579,7 +661,11 @@ def main(args: argparse.Namespace) -> None:
     tasks = [[domain, available, reader] for domain in domains]
 
     print(f"start to scan domains, total: {len(tasks)}")
-    result = multi_thread_run(func=check, tasks=tasks, num_threads=args.thread, show_progress=not args.invisible)
+    result = multi_thread_run(
+        func=check,
+        tasks=tasks,
+        num_threads=args.thread,
+        show_progress=not args.invisible)
 
     effectives, links = [], []
     for item in result:
@@ -593,7 +679,10 @@ def main(args: argparse.Namespace) -> None:
         filename = os.path.join(workspace, trim(args.link) or "links.txt")
         print(f"found {len(links)} links, save it to {filename}")
 
-        content = base64.b64encode("\n".join(links).encode(encoding="utf8")).decode(encoding="utf8")
+        content = base64.b64encode(
+            "\n".join(links).encode(
+                encoding="utf8")).decode(
+            encoding="utf8")
         write_file(filename=filename, lines=content, overwrite=True)
 
     markdown = os.path.join(workspace, trim(args.markdown) or "table.md")

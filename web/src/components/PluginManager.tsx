@@ -10,10 +10,13 @@ axios.interceptors.request.use(
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn('No authentication token found');
     }
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -77,13 +80,40 @@ const PluginManager: React.FC = () => {
   const fetchPlugins = async () => {
     try {
       setLoading(true);
+      
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error('认证令牌缺失，请重新登录');
+        return;
+      }
+      
       const response = await axios.get('http://localhost:5000/api/plugins');
       if (response.data.success) {
         setPlugins(response.data.data);
+      } else {
+        message.error(response.data.error || '获取插件列表失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取插件列表失败:', error);
-      message.error('获取插件列表失败');
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (error.response) {
+        // 服务器响应了错误状态码
+        if (error.response.status === 401) {
+          message.error('认证失败，请重新登录');
+        } else if (error.response.status === 403) {
+          message.error('权限不足，无法获取插件列表');
+        } else {
+          message.error(`获取插件列表失败: ${error.response.data?.error || error.response.statusText}`);
+        }
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        message.error('无法连接到服务器，请检查后端服务是否运行');
+      } else {
+        // 其他错误
+        message.error(`获取插件列表失败: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -91,21 +121,55 @@ const PluginManager: React.FC = () => {
 
   const fetchPluginConfig = async (pluginName: string) => {
     try {
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error('认证令牌缺失，请重新登录');
+        return '';
+      }
+      
       const response = await axios.get('http://localhost:5000/api/config/plugin');
       if (response.data.success) {
         const pluginConfig = response.data.data.plugins?.[pluginName];
         if (pluginConfig) {
           return JSON.stringify(pluginConfig, null, 2);
         }
+      } else {
+        message.error(response.data.error || '获取插件配置失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取插件配置失败:', error);
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (error.response) {
+        // 服务器响应了错误状态码
+        if (error.response.status === 401) {
+          message.error('认证失败，请重新登录');
+        } else if (error.response.status === 403) {
+          message.error('权限不足，无法获取插件配置');
+        } else {
+          message.error(`获取插件配置失败: ${error.response.data?.error || error.response.statusText}`);
+        }
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        message.error('无法连接到服务器，请检查后端服务是否运行');
+      } else {
+        // 其他错误
+        message.error(`获取插件配置失败: ${error.message}`);
+      }
     }
     return '';
   };
 
   const addPlugin = async (values: AddPluginFormValues) => {
     try {
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error('认证令牌缺失，请重新登录');
+        return;
+      }
+      
       console.log('开始添加插件，参数:', values);
       
       // 检查是否有上传的文件
@@ -163,18 +227,25 @@ const PluginManager: React.FC = () => {
       } else {
         message.error(response.data.error || '添加插件失败');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('添加插件失败:', err);
-      const error = err as any;
-      if (error.response) {
-        console.error('响应错误:', error.response.status, error.response.data);
-        message.error(`添加插件失败: ${error.response.data.error || '服务器错误'}`);
-      } else if (error.request) {
-        console.error('请求错误:', error.request);
-        message.error('添加插件失败: 网络错误或服务器未响应');
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (err.response) {
+        // 服务器响应了错误状态码
+        if (err.response.status === 401) {
+          message.error('认证失败，请重新登录');
+        } else if (err.response.status === 403) {
+          message.error('权限不足，无法执行此操作');
+        } else {
+          message.error(`添加失败: ${err.response.data?.error || err.response.statusText}`);
+        }
+      } else if (err.request) {
+        // 请求已发出但没有收到响应
+        message.error('无法连接到服务器，请检查后端服务是否运行');
       } else {
-        console.error('其他错误:', error.message);
-        message.error(`添加插件失败: ${error.message}`);
+        // 其他错误
+        message.error(`添加插件失败: ${err.message}`);
       }
     }
   };
@@ -183,6 +254,13 @@ const PluginManager: React.FC = () => {
     if (!editingPlugin) return;
     
     try {
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error('认证令牌缺失，请重新登录');
+        return;
+      }
+      
       // 构建更新数据，保持默认的模块路径和函数名
       const updateData: any = {
         description: values.description,
@@ -210,33 +288,95 @@ const PluginManager: React.FC = () => {
         message.success(response.data.message);
         setEditModalVisible(false);
         editForm.resetFields();
-        fetchPlugins(); // 刷新列表
+        // 刷新列表以确保数据一致性
+        fetchPlugins();
       } else {
         message.error(response.data.error || '更新插件失败');
+        // 操作失败后重新获取列表
+        fetchPlugins();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('更新插件失败:', err);
-      const error = err as any;
-      if (error.response) {
-        console.error('响应错误:', error.response.status, error.response.data);
-        message.error(`更新插件失败: ${error.response.data.error || '服务器错误'}`);
-      } else if (error.request) {
-        console.error('请求错误:', error.request);
-        message.error('更新插件失败: 网络错误或服务器未响应');
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (err.response) {
+        // 服务器响应了错误状态码
+        if (err.response.status === 401) {
+          message.error('认证失败，请重新登录');
+        } else if (err.response.status === 403) {
+          message.error('权限不足，无法执行此操作');
+        } else {
+          message.error(`更新失败: ${err.response.data?.error || err.response.statusText}`);
+        }
+      } else if (err.request) {
+        // 请求已发出但没有收到响应
+        message.error('无法连接到服务器，请检查后端服务是否运行');
       } else {
-        console.error('其他错误:', error.message);
-        message.error(`更新插件失败: ${error.message}`);
+        // 其他错误
+        message.error(`更新插件失败: ${err.message}`);
+      }
+      
+      // 请求失败后重新获取列表
+      fetchPlugins();
+    }
+  };
+
+  const validatePluginConfig = async (pluginName: string, config: any) => {
+    try {
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('认证令牌缺失');
+        return { success: false, error: '认证令牌缺失，请重新登录' };
+      }
+      
+      const response = await axios.post(`http://localhost:5000/api/plugins/${pluginName}/validate`, config);
+      return response.data;
+    } catch (error: any) {
+      console.error('验证插件配置失败:', error);
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (error.response) {
+        // 服务器响应了错误状态码
+        if (error.response.status === 401) {
+          return { success: false, error: '认证失败，请重新登录' };
+        } else if (error.response.status === 403) {
+          return { success: false, error: '权限不足，无法验证配置' };
+        } else {
+          return { success: false, error: `验证失败: ${error.response.data?.error || error.response.statusText}` };
+        }
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        return { success: false, error: '无法连接到服务器，请检查后端服务是否运行' };
+      } else {
+        // 其他错误
+        return { success: false, error: `验证插件配置失败: ${error.message}` };
       }
     }
   };
 
   const updatePluginConfig = async (pluginName: string, config: string) => {
     try {
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error('认证令牌缺失，请重新登录');
+        return false;
+      }
+      
       // 验证JSON格式
+      let pluginConfig;
       try {
-        JSON.parse(config);
+        pluginConfig = JSON.parse(config);
       } catch (e) {
         message.error('配置不是有效的JSON格式');
+        return false;
+      }
+      
+      // 首先验证插件配置
+      const validation = await validatePluginConfig(pluginName, pluginConfig);
+      if (!validation.success) {
+        message.error(validation.message || validation.error || '插件配置验证失败');
         return false;
       }
       
@@ -244,7 +384,6 @@ const PluginManager: React.FC = () => {
       const response = await axios.get('http://localhost:5000/api/config/plugin');
       if (response.data.success) {
         const fullConfig = response.data.data;
-        const pluginConfig = JSON.parse(config);
         
         // 更新特定插件的配置
         if (!fullConfig.plugins) {
@@ -257,7 +396,7 @@ const PluginManager: React.FC = () => {
         if (saveResponse.data.success) {
           message.success('插件配置已更新');
           setConfigModalVisible(false);
-          fetchPlugins(); // 刷新列表
+          fetchPlugins(); // 刷新列表以确保数据同步
           return true;
         } else {
           message.error(saveResponse.data.error || '更新插件配置失败');
@@ -267,15 +406,25 @@ const PluginManager: React.FC = () => {
         message.error(response.data.error || '获取插件配置失败');
         return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('更新插件配置失败:', err);
-      const error = err as any;
-      if (error.response) {
-        message.error(`更新插件配置失败: ${error.response.data.error || '服务器错误'}`);
-      } else if (error.request) {
-        message.error('更新插件配置失败: 网络错误或服务器未响应');
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (err.response) {
+        // 服务器响应了错误状态码
+        if (err.response.status === 401) {
+          message.error('认证失败，请重新登录');
+        } else if (err.response.status === 403) {
+          message.error('权限不足，无法执行此操作');
+        } else {
+          message.error(`更新配置失败: ${err.response.data?.error || err.response.statusText}`);
+        }
+      } else if (err.request) {
+        // 请求已发出但没有收到响应
+        message.error('无法连接到服务器，请检查后端服务是否运行');
       } else {
-        message.error(`更新插件配置失败: ${error.message}`);
+        // 其他错误
+        message.error(`更新插件配置失败: ${err.message}`);
       }
       return false;
     }
@@ -283,49 +432,189 @@ const PluginManager: React.FC = () => {
 
   const deletePlugin = async (pluginName: string) => {
     try {
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error('认证令牌缺失，请重新登录');
+        return;
+      }
+      
       const response = await axios.delete(`http://localhost:5000/api/plugins/${pluginName}/delete`);
       
       if (response.data.success) {
         message.success(response.data.message);
-        fetchPlugins(); // 刷新列表
+        // 操作成功后刷新插件列表
+        fetchPlugins();
       } else {
         message.error(response.data.error || '删除插件失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('删除插件失败:', error);
-      message.error('删除插件失败');
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (error.response) {
+        // 服务器响应了错误状态码
+        if (error.response.status === 401) {
+          message.error('认证失败，请重新登录');
+        } else if (error.response.status === 403) {
+          message.error('权限不足，无法执行此操作');
+        } else {
+          message.error(`删除失败: ${error.response.data?.error || error.response.statusText}`);
+        }
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        message.error('无法连接到服务器，请检查后端服务是否运行');
+      } else {
+        // 其他错误
+        message.error(`删除插件失败: ${error.message}`);
+      }
     }
   };
 
   const togglePlugin = async (pluginName: string, enabled: boolean) => {
     try {
+      // 显示加载状态
+      message.loading({
+        content: enabled ? '正在启用插件...' : '正在禁用插件...',
+        duration: 0,
+        key: 'toggle-plugin'
+      });
+      
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error({
+          content: '认证令牌缺失，请重新登录',
+          key: 'toggle-plugin'
+        });
+        return;
+      }
+      
       const response = enabled 
         ? await axios.post(`http://localhost:5000/api/plugins/${pluginName}/enable`)
         : await axios.post(`http://localhost:5000/api/plugins/${pluginName}/disable`);
       
       if (response.data.success) {
-        message.success(enabled ? '插件已启用' : '插件已禁用');
-        fetchPlugins(); // 刷新列表
+        message.success({
+          content: enabled ? '插件已启用' : '插件已禁用',
+          key: 'toggle-plugin'
+        });
+        // 操作成功后刷新插件列表以确保状态同步
+        fetchPlugins();
       } else {
-        message.error(response.data.error || '操作失败');
+        message.error({
+          content: response.data.error || '操作失败',
+          key: 'toggle-plugin'
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('操作插件失败:', error);
-      message.error('操作插件失败');
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (error.response) {
+        // 服务器响应了错误状态码
+        if (error.response.status === 401) {
+          message.error({
+            content: '认证失败，请重新登录',
+            key: 'toggle-plugin'
+          });
+        } else if (error.response.status === 403) {
+          message.error({
+            content: '权限不足，无法执行此操作',
+            key: 'toggle-plugin'
+          });
+        } else {
+          message.error({
+            content: `操作失败: ${error.response.data?.error || error.response.statusText}`,
+            key: 'toggle-plugin'
+          });
+        }
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        message.error({
+          content: '无法连接到服务器，请检查后端服务是否运行',
+          key: 'toggle-plugin'
+        });
+      } else {
+        // 其他错误
+        message.error({
+          content: `操作插件失败: ${error.message}`,
+          key: 'toggle-plugin'
+        });
+      }
     }
   };
 
   const runPlugin = async (pluginName: string) => {
     try {
+      // 显示加载状态
+      message.loading({
+        content: '正在启动插件执行...',
+        duration: 0,
+        key: 'run-plugin'
+      });
+      
+      // 检查认证令牌
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        message.error({
+          content: '认证令牌缺失，请重新登录',
+          key: 'run-plugin'
+        });
+        return;
+      }
+      
       const response = await axios.post(`http://localhost:5000/api/plugins/${pluginName}/run`);
       if (response.data.success) {
-        message.success('插件已启动执行');
+        message.success({
+          content: '插件已启动执行',
+          key: 'run-plugin'
+        });
+        // 3秒后刷新插件列表以获取最新状态
+        setTimeout(() => {
+          fetchPlugins();
+        }, 3000);
       } else {
-        message.error(response.data.error || '执行失败');
+        message.error({
+          content: response.data.error || '执行失败',
+          key: 'run-plugin'
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('执行插件失败:', error);
-      message.error('执行插件失败');
+      
+      // 检查错误类型并给出更具体的错误信息
+      if (error.response) {
+        // 服务器响应了错误状态码
+        if (error.response.status === 401) {
+          message.error({
+            content: '认证失败，请重新登录',
+            key: 'run-plugin'
+          });
+        } else if (error.response.status === 403) {
+          message.error({
+            content: '权限不足，无法执行此操作',
+            key: 'run-plugin'
+          });
+        } else {
+          message.error({
+            content: `执行失败: ${error.response.data?.error || error.response.statusText}`,
+            key: 'run-plugin'
+          });
+        }
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        message.error({
+          content: '无法连接到服务器，请检查后端服务是否运行',
+          key: 'run-plugin'
+        });
+      } else {
+        // 其他错误
+        message.error({
+          content: `执行插件失败: ${error.message}`,
+          key: 'run-plugin'
+        });
+      }
     }
   };
 
@@ -425,8 +714,8 @@ const PluginManager: React.FC = () => {
       key: 'status',
       width: '10%',
       render: (_text: any, record: Plugin) => (
-        <Tag color={record.status === 'running' ? 'green' : 'default'} style={{ borderRadius: 6, fontWeight: 500 }}>
-          {record.status || '空闲'}
+        <Tag color={record.status === 'running' ? 'green' : record.status === 'error' ? 'red' : 'default'} style={{ borderRadius: 6, fontWeight: 500 }}>
+          {record.status === 'running' ? '运行中' : record.status === 'error' ? '错误' : '空闲'}
         </Tag>
       ),
     },

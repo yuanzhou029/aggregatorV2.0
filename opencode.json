@@ -1,0 +1,37 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "local-models": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "自定义",
+      "options": {
+        "baseURL": "http://192.168.3.220:3000/openai-qwen-oauth/v1",
+        "apiKey": "yuanzhou821009"
+      },
+      "models": {
+        "qwen3-coder-plus": {
+          "name": "qwen3-coder-plus"
+        },
+        "qwen3-coder-flash": {
+          "name": "qwen3-coder-flash"
+        }
+      }
+    },
+    "local-models-2": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "自定义-2",
+      "options": {
+        "baseURL": "https://apis.iflow.cn/v1",
+        "apiKey": "sk-9b3aa5c294beafaff35659e9a1c45748"
+      },
+      "models": {
+        "glm-4.6": {
+          "name": "glm-4.6"
+        },
+        "qwen3-coder-plus": {
+          "name": "qwen3-coder-plus"
+        }
+      }
+    }
+  }
+}

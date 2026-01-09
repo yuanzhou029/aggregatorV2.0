@@ -31,14 +31,15 @@ CTX.verify_mode = ssl.CERT_NONE
 
 
 def trim(text: str) -> str:
-    if not text or type(text) != str:
+    if not text or not isinstance(text, str):
         return ""
 
     return text.strip()
 
 
 def copy(filepath: str) -> None:
-    if not filepath or not os.path.exists(filepath) or not os.path.isfile(filepath):
+    if not filepath or not os.path.exists(
+            filepath) or not os.path.isfile(filepath):
         return
 
     newfile = f"{filepath}.bak"
@@ -75,7 +76,11 @@ def download_mmdb(repo: str, target: str, filepath: str, retry: int = 3):
         except Exception:
             count += 1
 
-    assets = read_response(response=response, expected=200, deserialize=True, key="assets")
+    assets = read_response(
+        response=response,
+        expected=200,
+        deserialize=True,
+        key="assets")
     if not assets or not isinstance(assets, list):
         raise Exception("no assets found in github release")
 
@@ -126,8 +131,10 @@ def download(url: str, filepath: str, filename: str, retry: int = 3) -> None:
 
 
 def load_mmdb(
-    directory: str, repo: str = "alecthw/mmdb_china_ip_list", filename: str = "Country.mmdb", update: bool = False
-) -> database.Reader:
+        directory: str,
+        repo: str = "alecthw/mmdb_china_ip_list",
+        filename: str = "Country.mmdb",
+        update: bool = False) -> database.Reader:
     filepath = os.path.join(directory, filename)
     if update or not os.path.exists(filepath) or not os.path.isfile(filepath):
         if not download_mmdb(repo, filename, directory):
@@ -136,7 +143,11 @@ def load_mmdb(
     return database.Reader(filepath)
 
 
-def read_response(response: HTTPResponse, expected: int = 200, deserialize: bool = False, key: str = "") -> typing.Any:
+def read_response(
+        response: HTTPResponse,
+        expected: int = 200,
+        deserialize: bool = False,
+        key: str = "") -> typing.Any:
     if not response or not isinstance(response, HTTPResponse):
         return None
 
@@ -146,14 +157,14 @@ def read_response(response: HTTPResponse, expected: int = 200, deserialize: bool
 
     try:
         text = response.read()
-    except:
+    except BaseException:
         text = b""
 
     try:
         content = text.decode(encoding="UTF8")
     except UnicodeDecodeError:
         content = gzip.decompress(text).decode("UTF8")
-    except:
+    except BaseException:
         content = ""
 
     if not deserialize:
@@ -164,7 +175,7 @@ def read_response(response: HTTPResponse, expected: int = 200, deserialize: bool
     try:
         data = json.loads(content)
         return data if not key else data.get(key, None)
-    except:
+    except BaseException:
         return None
 
 
@@ -180,9 +191,11 @@ def main(args: argparse.Namespace) -> None:
             nodes = yaml.load(f, Loader=yaml.SafeLoader).get("proxies", [])
         except (yaml.constructor.ConstructorError, yaml.parser.ParserError):
             f.seek(0, 0)
-            yaml.add_multi_constructor("str", lambda loader, suffix, node: str(node.value), Loader=yaml.SafeLoader)
+            yaml.add_multi_constructor(
+                "str", lambda loader, suffix, node: str(
+                    node.value), Loader=yaml.SafeLoader)
             nodes = yaml.load(f, Loader=yaml.SafeLoader).get("proxies", [])
-        except:
+        except BaseException:
             nodes = []
 
         if nodes and args.location:
@@ -218,18 +231,26 @@ def main(args: argparse.Namespace) -> None:
                             country = response.country.names.get("zh-CN", "")
 
                             if country == "中国":
-                                # TODO: may be a transit node, need to further confirm landing ip address
-                                name = re.sub(r"^[\U0001F1E6-\U0001F1FF]{2}", "", name, flags=re.I)
+                                # TODO: may be a transit node, need to further
+                                # confirm landing ip address
+                                name = re.sub(
+                                    r"^[\U0001F1E6-\U0001F1FF]{2}", "", name, flags=re.I)
                             elif country:
                                 name = country
                         else:
-                            print("cannot get geolocation and rename because IP address is faked")
+                            print(
+                                "cannot get geolocation and rename because IP address is faked")
 
                         item["name"] = name
                     except Exception:
                         pass
 
-                name = re.sub(r"-?(\d+|(\d+|\s+|(\d+)?-\d+)[A-Z])$", "", item.get("name", "")).strip()
+                name = re.sub(
+                    r"-?(\d+|(\d+|\s+|(\d+)?-\d+)[A-Z])$",
+                    "",
+                    item.get(
+                        "name",
+                        "")).strip()
                 if not name:
                     name = "".join(random.sample(string.ascii_uppercase, 6))
 
@@ -248,7 +269,7 @@ def main(args: argparse.Namespace) -> None:
         n = max(args.num, math.floor(math.log10(len(nodes))) + 1)
 
         for index, node in enumerate(nodes):
-            node["name"] = f"{name} {str(index+1).zfill(n)}"
+            node["name"] = f"{name} {str(index + 1).zfill(n)}"
             proxies.append(node)
 
     if not proxies:

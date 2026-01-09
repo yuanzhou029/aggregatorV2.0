@@ -3,7 +3,8 @@ import re
 IP_MIDDLE_OCTET = r"(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5]))"
 IP_LAST_OCTET = r"(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5]))"
 
-# copy from https://github.com/python-validators/validators/blob/master/validators/url.py
+# copy from
+# https://github.com/python-validators/validators/blob/master/validators/url.py
 
 REGEX = re.compile(  # noqa: W605
     r"^"
@@ -87,7 +88,7 @@ PATTERN = re.compile(REGEX)
 
 
 def isurl(url: str) -> bool:
-    if not url or type(url) != str:
+    if not url or not isinstance(url, str):
         return False
 
     return PATTERN.match(url) is not None

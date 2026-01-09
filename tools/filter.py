@@ -50,7 +50,11 @@ class APIConfig(object):
     providers: list[tuple[str, str]]
 
 
-def parse(base: str, filename: str, provider: str = "", all: bool = False) -> APIConfig:
+def parse(
+        base: str,
+        filename: str,
+        provider: str = "",
+        all: bool = False) -> APIConfig:
     filepath = os.path.abspath(os.path.join(base, filename))
     if not os.path.exists(filepath) or not os.path.isfile(filepath):
         print(f"cannot load config due to file {filepath} not found")
@@ -65,7 +69,10 @@ def parse(base: str, filename: str, provider: str = "", all: bool = False) -> AP
         try:
             data = yaml.load(f, Loader=yaml.SafeLoader)
             secret = trim(data.get("secret", ""))
-            controller = trim(data.get("external-controller", "127.0.0.1:9090"))
+            controller = trim(
+                data.get(
+                    "external-controller",
+                    "127.0.0.1:9090"))
             providers = [
                 (k, os.path.abspath(os.path.join(base, v.get("path", ""))))
                 for k, v in data.get("proxy-providers", {}).items()
@@ -84,7 +91,8 @@ def parse(base: str, filename: str, provider: str = "", all: bool = False) -> AP
             return None
 
 
-def http_get(url: str, headers: dict = None, retry: int = 3, timeout: int = 6) -> tuple[int, str]:
+def http_get(url: str, headers: dict = None, retry: int = 3,
+             timeout: int = 6) -> tuple[int, str]:
     if not url or retry <= 0:
         return 400, ""
 
@@ -93,30 +101,40 @@ def http_get(url: str, headers: dict = None, retry: int = 3, timeout: int = 6) -
 
     try:
         request = urllib.request.Request(url=url, headers=headers)
-        response = urllib.request.urlopen(request, timeout=timeout, context=CTX)
+        response = urllib.request.urlopen(
+            request, timeout=timeout, context=CTX)
         status, content = response.getcode(), ""
         if status == 200:
             content = response.read()
             try:
                 content = str(content, encoding="utf8")
-            except:
+            except BaseException:
                 content = gzip.decompress(content).decode("utf8")
 
         return status, content
-    except:
-        return http_get(url=url, headers=headers, retry=retry - 1, timeout=timeout)
+    except BaseException:
+        return http_get(
+            url=url,
+            headers=headers,
+            retry=retry - 1,
+            timeout=timeout)
 
 
-def fetch_proxies(prefix: str, provider: str, headers: dict, retry: int = 3) -> list[dict]:
+def fetch_proxies(
+        prefix: str,
+        provider: str,
+        headers: dict,
+        retry: int = 3) -> list[dict]:
     url = f"{prefix}/providers/proxies/{provider}"
     _, content = http_get(url=url, headers=headers, retry=retry, timeout=30)
     try:
         return json.loads(content).get("proxies", [])
-    except:
+    except BaseException:
         return []
 
 
-def statistics(prefix: str, provider: str, headers: dict, base: int, retry: int = 3) -> tuple[bool, int]:
+def statistics(prefix: str, provider: str, headers: dict,
+               base: int, retry: int = 3) -> tuple[bool, int]:
     proxies = fetch_proxies(prefix, provider, headers, retry)
     if not proxies:
         return False, 0
@@ -139,7 +157,11 @@ def statistics(prefix: str, provider: str, headers: dict, base: int, retry: int 
     return found, wait
 
 
-def healthcheck(prefix: str, provider: str, headers: dict, retry: int = 3) -> bool:
+def healthcheck(
+        prefix: str,
+        provider: str,
+        headers: dict,
+        retry: int = 3) -> bool:
     prefix, provider = trim(prefix), trim(provider)
     if not prefix or not provider or retry <= 0:
         return False
@@ -161,11 +183,12 @@ def reload(prefix: str, secret: str, retry: int = 3) -> bool:
     success, count = False, 0
     while not success and count < retry:
         try:
-            request = urllib.request.Request(url, data=data, headers=headers, method="PUT")
+            request = urllib.request.Request(
+                url, data=data, headers=headers, method="PUT")
             response = urllib.request.urlopen(request, timeout=10, context=CTX)
             if response.getcode() == 204:
                 success = True
-        except:
+        except BaseException:
             pass
 
         count += 1
@@ -183,7 +206,7 @@ def get_headers(secret: str = "") -> dict:
 
 
 def trim(text: str) -> str:
-    if not text or type(text) != str:
+    if not text or not isinstance(text, str):
         return ""
 
     return text.strip()
@@ -200,7 +223,8 @@ def complete(url: str) -> str:
 
 
 def copy(filepath: str) -> None:
-    if not filepath or not os.path.exists(filepath) or not os.path.isfile(filepath):
+    if not filepath or not os.path.exists(
+            filepath) or not os.path.isfile(filepath):
         return
 
     newfile = f"{filepath}.bak"
@@ -223,14 +247,14 @@ def running(name):
 
 
 def batch(func: typing.Callable, params: list) -> list:
-    if not func or not params or type(params) != list:
+    if not func or not params or not isinstance(params, list):
         return []
 
     cpu_count = multiprocessing.cpu_count()
     num = len(params) if len(params) <= cpu_count else cpu_count
 
     pool = multiprocessing.Pool(num)
-    if type(params[0]) == list or type(params[0]) == tuple:
+    if isinstance(params[0], type(params[0])) == tuple:
         results = pool.starmap(func, params)
     else:
         results = pool.map(func, params)
@@ -292,14 +316,20 @@ def process(
         try:
             nodes = yaml.load(f, Loader=yaml.SafeLoader).get("proxies", [])
         except (yaml.constructor.ConstructorError, yaml.parser.ParserError):
-            yaml.add_multi_constructor("str", lambda loader, suffix, node: str(node.value), Loader=yaml.SafeLoader)
+            yaml.add_multi_constructor(
+                "str", lambda loader, suffix, node: str(
+                    node.value), Loader=yaml.SafeLoader)
             nodes = yaml.load(f, Loader=yaml.FullLoader).get("proxies", [])
 
     proxies = [x for x in nodes if x.get("name", "") not in names]
     if not proxies:
         return False
 
-    print(f"completed filtering, total: {len(nodes)}, filtered: {len(names)}, remain: {len(proxies)}")
+    print(
+        f"completed filtering, total: {
+            len(nodes)}, filtered: {
+            len(names)}, remain: {
+                len(proxies)}")
 
     data = {"proxies": proxies}
     if backup:
@@ -337,10 +367,13 @@ def main(args: argparse.Namespace) -> None:
 
     result = batch(func=process, params=tasks)
     if not any(result):
-        print(f"filter proxy providers error, providers: {[x[0] for x in providers]}")
+        print(
+            f"filter proxy providers error, providers: {[x[0] for x in providers]}")
         sys.exit(-1)
 
-    message = "success" if reload(config.controller, config.secret) else "failed"
+    message = "success" if reload(
+        config.controller,
+        config.secret) else "failed"
     print(f"reload clash.exe with config {config.path} {message}")
 
 

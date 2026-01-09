@@ -58,7 +58,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Token validation failed or timed out:', error);
       // 令牌无效或超时，清除本地存储
       localStorage.removeItem('authToken');
-      delete axios.defaults.headers.common['Authorization'];
       setIsAuthenticated(false);
       setUser(null);
     } finally {
@@ -82,7 +81,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         // 令牌无效，清除本地存储
         localStorage.removeItem('authToken');
-        delete axios.defaults.headers.common['Authorization'];
         setIsAuthenticated(false);
         setUser(null);
       }
@@ -90,7 +88,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Token validation failed:', error);
       // 令牌无效或后端不可达，清除本地存储
       localStorage.removeItem('authToken');
-      delete axios.defaults.headers.common['Authorization'];
       setIsAuthenticated(false);
       setUser(null);
     }
@@ -107,8 +104,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { token } = response.data;
         // 将令牌存储在本地存储中
         localStorage.setItem('authToken', token);
-        // 设置axios默认头部
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
         setIsAuthenticated(true);
         setUser(username);
@@ -125,7 +120,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     // 清除本地存储中的令牌
     localStorage.removeItem('authToken');
-    delete axios.defaults.headers.common['Authorization'];
     
     setIsAuthenticated(false);
     setUser(null);

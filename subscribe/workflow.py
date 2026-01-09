@@ -99,7 +99,11 @@ def execute(task_conf: TaskConfig) -> list:
         api_prefix=task_conf.api_prefix,
     )
 
-    logger.info(f"start fetch proxy: name=[{task_conf.name}]\tid=[{task_conf.index}]\tdomain=[{obj.ref}]")
+    logger.info(
+        f"start fetch proxy: name=[{
+            task_conf.name}]\tid=[{
+            task_conf.index}]\tdomain=[{
+                obj.ref}]")
 
     # 套餐续期
     if task_conf.renew:
@@ -132,8 +136,11 @@ def execute(task_conf: TaskConfig) -> list:
     )
 
     logger.info(
-        f"finished fetch proxy: name=[{task_conf.name}]\tid=[{task_conf.index}]\tdomain=[{obj.ref}]\tcount=[{len(proxies)}]"
-    )
+        f"finished fetch proxy: name=[{
+            task_conf.name}]\tid=[{
+            task_conf.index}]\tdomain=[{
+                obj.ref}]\tcount=[{
+                    len(proxies)}]")
 
     return proxies
 
@@ -190,7 +197,9 @@ def dedup_task(tasks: list) -> list:
 
 def exists(tasks: list, task: TaskConfig) -> bool:
     if not isinstance(task, TaskConfig):
-        logger.error(f"[DedupError] need type 'TaskConfig' but got type '{type(task)}'")
+        logger.error(
+            f"[DedupError] need type 'TaskConfig' but got type '{
+                type(task)}'")
         return True
     if not tasks:
         return False
@@ -208,9 +217,11 @@ def exists(tasks: list, task: TaskConfig) -> bool:
             if not item.rename:
                 item.rename = task.rename
             if task.exclude:
-                item.exclude = "|".join([item.exclude, task.exclude]).removeprefix("|")
+                item.exclude = "|".join(
+                    [item.exclude, task.exclude]).removeprefix("|")
             if task.include:
-                item.include = "|".join([item.include, task.include]).removeprefix("|")
+                item.include = "|".join(
+                    [item.include, task.include]).removeprefix("|")
         break
 
     return found
@@ -226,7 +237,11 @@ def merge_config(configs: list) -> list:
         if not tsub:
             if rsub:
                 return False
-            return raw.get("domain", "").strip() == target.get("domain", "").strip()
+            return raw.get(
+                "domain",
+                "").strip() == target.get(
+                "domain",
+                "").strip()
         if isinstance(tsub, str):
             return rsub == tsub.strip()
         for sub in tsub:
@@ -239,7 +254,9 @@ def merge_config(configs: list) -> list:
     items = []
     for conf in configs:
         if not isinstance(conf, dict):
-            logger.error(f"[MergeError] need type 'dict' but got type '{type(conf)}'")
+            logger.error(
+                f"[MergeError] need type 'dict' but got type '{
+                    type(conf)}'")
             continue
 
         sub = conf.get("sub", "")
@@ -263,9 +280,11 @@ def merge_config(configs: list) -> list:
                 if not item.get("rename", ""):
                     item["rename"] = conf.get("rename", "")
                 if conf.get("exclude", ""):
-                    item["exclude"] = "|".join([item.get("exclude", ""), conf.get("exclude", "")]).removeprefix("|")
+                    item["exclude"] = "|".join(
+                        [item.get("exclude", ""), conf.get("exclude", "")]).removeprefix("|")
                 if conf.get("include", ""):
-                    item["include"] = "|".join([item.get("include", ""), conf.get("include", "")]).removeprefix("|")
+                    item["include"] = "|".join(
+                        [item.get("include", ""), conf.get("include", "")]).removeprefix("|")
 
                 break
 
@@ -275,13 +294,20 @@ def merge_config(configs: list) -> list:
     return items
 
 
-def refresh(config: dict, push: PushTo, alives: dict, filepath: str = "", skip_remark: bool = False) -> None:
+def refresh(
+        config: dict,
+        push: PushTo,
+        alives: dict,
+        filepath: str = "",
+        skip_remark: bool = False) -> None:
     if not config or not push:
-        logger.error("[UpdateError] cannot update remote config because content is empty")
+        logger.error(
+            "[UpdateError] cannot update remote config because content is empty")
         return
 
     # mark invalid crawled subscription
-    invalidsubs = None if (skip_remark or not alives) else [k for k, v in alives.items() if not v]
+    invalidsubs = None if (skip_remark or not alives) else [
+        k for k, v in alives.items() if not v]
     if invalidsubs:
         crawledsub = config.get("crawl", {}).get("persist", {}).get("subs", "")
         threshold = max(config.get("threshold", 1), 1)
@@ -304,14 +330,20 @@ def refresh(config: dict, push: PushTo, alives: dict, filepath: str = "", skip_r
 
                 if count > 0:
                     content = json.dumps(data)
-                    push.push_to(content=content, config=pushconf, group="crawled-remark")
-                    logger.info(f"[UpdateInfo] found {count} invalid crawled subscriptions")
-            except:
-                logger.error(f"[UpdateError] remark invalid crawled subscriptions failed")
+                    push.push_to(
+                        content=content,
+                        config=pushconf,
+                        group="crawled-remark")
+                    logger.info(
+                        f"[UpdateInfo] found {count} invalid crawled subscriptions")
+            except BaseException:
+                logger.error(
+                    f"[UpdateError] remark invalid crawled subscriptions failed")
 
     update_conf = config.get("update", {})
     if not update_conf.get("enable", False):
-        logger.debug("[UpdateError] skip update remote config because enable=[False]")
+        logger.debug(
+            "[UpdateError] skip update remote config because enable=[False]")
         return
 
     if not push.validate(config=update_conf):
@@ -326,7 +358,13 @@ def refresh(config: dict, push: PushTo, alives: dict, filepath: str = "", skip_r
             sub = item.get("sub", "")
             if isinstance(sub, list) and len(sub) <= 1:
                 sub = sub[0] if sub else ""
-            if source in [Origin.TEMPORARY.name, Origin.OWNED.name] or isinstance(sub, list) or alives.get(sub, False):
+            if source in [
+                Origin.TEMPORARY.name,
+                Origin.OWNED.name] or isinstance(
+                sub,
+                list) or alives.get(
+                sub,
+                    False):
                 item.pop("errors", None)
                 item.pop("debut", None)
                 sites.append(item)
@@ -342,7 +380,8 @@ def refresh(config: dict, push: PushTo, alives: dict, filepath: str = "", skip_r
         domains = config.get("domains", [])
 
     if not domains:
-        logger.error("[UpdateError] skip update remote config because domians is empty")
+        logger.error(
+            "[UpdateError] skip update remote config because domians is empty")
         return
 
     content = json.dumps(config)

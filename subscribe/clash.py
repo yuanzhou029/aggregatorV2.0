@@ -55,7 +55,8 @@ def generate_config(path: str, proxies: list, filename: str) -> list:
 
     config.update(external_config)
     with open(os.path.join(path, filename), "w+", encoding="utf8") as f:
-        # avoid mihomo error: invalid REALITY short ID see: https://github.com/MetaCubeX/mihomo/blob/Meta/adapter/outbound/reality.go#L35
+        # avoid mihomo error: invalid REALITY short ID see:
+        # https://github.com/MetaCubeX/mihomo/blob/Meta/adapter/outbound/reality.go#L35
         yaml.add_representer(QuotedStr, quoted_scalar)
 
         # write to file
@@ -92,7 +93,8 @@ def filter_proxies(proxies: list) -> dict:
 
     # 防止多个代理节点名字相同导致clash配置错误
     groups, unique_names = {}, set()
-    for key, group in itertools.groupby(unique_proxies, key=lambda p: p.get("name", "")):
+    for key, group in itertools.groupby(
+            unique_proxies, key=lambda p: p.get("name", "")):
         items = groups.get(key, [])
         items.extend(list(group))
         groups[key] = items
@@ -150,18 +152,23 @@ def proxies_exists(proxy: dict, hosts: dict) -> bool:
     if protocol == "http" or protocol == "socks5":
         return True
     elif protocol in ["ss", "trojan", "anytls", "hysteria2"]:
-        return any(p.get("password", "") == proxy.get("password", "") for p in proxies)
-    elif protocol == "ssr":
         return any(
-            str(p.get("protocol-param", "")).lower() == str(proxy.get("protocol-param", "")).lower() for p in proxies
-        )
+            p.get(
+                "password",
+                "") == proxy.get(
+                "password",
+                "") for p in proxies)
+    elif protocol == "ssr":
+        return any(str(p.get("protocol-param", "")).lower() ==
+                   str(proxy.get("protocol-param", "")).lower() for p in proxies)
     elif protocol == "vmess" or protocol == "vless":
         return any(p.get("uuid", "") == proxy.get("uuid", "") for p in proxies)
     elif protocol == "snell":
         return any(p.get("psk", "") == proxy.get("psk", "") for p in proxies)
     elif protocol == "tuic":
         if proxy.get("token", ""):
-            return any(p.get("token", "") == proxy.get("token", "") for p in proxies)
+            return any(p.get("token", "") == proxy.get("token", "")
+                       for p in proxies)
         return any(p.get("uuid", "") == proxy.get("uuid", "") for p in proxies)
     elif protocol == "hysteria":
         key = "auth-str" if "auth-str" in proxy else "auth_str"
@@ -192,7 +199,8 @@ COMMON_SS_SUPPORTED_CIPHERS = [
     "xchacha20-ietf-poly1305",
 ]
 
-# reference: https://github.com/MetaCubeX/sing-shadowsocks2/blob/dev/shadowaead_2022/method.go#L73-L86
+# reference:
+# https://github.com/MetaCubeX/sing-shadowsocks2/blob/dev/shadowaead_2022/method.go#L73-L86
 MIHOMO_SS_SUPPORTED_CIPHERS_SALT_LEN = {
     "2022-blake3-aes-128-gcm": 16,
     "2022-blake3-aes-256-gcm": 32,
@@ -268,7 +276,7 @@ def check_ports(port: str, ranges: str, protocol: str) -> bool:
         flag = 0 < int(port) <= 65535
         if not flag or protocol not in ["hysteria", "hysteria2"] or not ranges:
             return flag
-    except:
+    except BaseException:
         return False
 
     nums = re.split(r"/|,", utils.trim(ranges))
@@ -284,14 +292,14 @@ def check_ports(port: str, ranges: str, protocol: str) -> bool:
             start, end = int(start), int(end)
             if start <= 0 or start > 65535 or end <= 0 or end > 65535 or start > end:
                 return False
-        except:
+        except BaseException:
             return False
 
     return True
 
 
 def verify(item: dict, mihomo: bool = True) -> bool:
-    if not item or type(item) != dict or "type" not in item:
+    if not item or not isinstance(item, dict) or "type" not in item:
         return False
 
     try:
@@ -307,13 +315,18 @@ def verify(item: dict, mihomo: bool = True) -> bool:
             return False
 
         if server.startswith("::"):
-            # ipv6 addresses starting with ":::" cause yaml loading errors, need to expand to full format
+            # ipv6 addresses starting with ":::" cause yaml loading errors,
+            # need to expand to full format
             server = ipaddress.IPv6Address(server).exploded
 
         item["server"] = server
 
         # port must be valid port number
-        if not check_ports(item.get("port", ""), item.get("ports", None), item.get("type", "")):
+        if not check_ports(
+            item.get(
+                "port", ""), item.get(
+                "ports", None), item.get(
+                "type", "")):
             return False
 
         # check uuid
@@ -322,11 +335,11 @@ def verify(item: dict, mihomo: bool = True) -> bool:
 
         # check servername and sni
         for attribute in ["servername", "sni"]:
-            if attribute in item and type(item[attribute]) != str:
+            if attribute in item and not isinstance(item[attribute], str):
                 return False
 
         for attribute in ["udp", "tls", "skip-cert-verify", "tfo"]:
-            if attribute in item and type(item[attribute]) != bool:
+            if attribute in item and not isinstance(item[attribute], bool):
                 return False
 
         authentication = "password"
@@ -338,22 +351,25 @@ def verify(item: dict, mihomo: bool = True) -> bool:
 
             if item["cipher"] in MIHOMO_SS_SUPPORTED_CIPHERS_SALT_LEN:
                 # will throw bad key length error
-                # see: https://github.com/MetaCubeX/sing-shadowsocks2/blob/dev/shadowaead_2022/method.go#L59-L108
+                # see:
+                # https://github.com/MetaCubeX/sing-shadowsocks2/blob/dev/shadowaead_2022/method.go#L59-L108
                 password = str(item.get(authentication, ""))
                 words = password.split(":")
                 for word in words:
                     try:
                         text = base64.b64decode(word)
-                        if len(text) != MIHOMO_SS_SUPPORTED_CIPHERS_SALT_LEN.get(item["cipher"]):
+                        if len(text) != MIHOMO_SS_SUPPORTED_CIPHERS_SALT_LEN.get(
+                                item["cipher"]):
                             return False
-                    except:
+                    except BaseException:
                         return False
 
             plugin = item.get("plugin", "")
 
             # clash: https://clash.wiki/configuration/outbound.html#shadowsocks
             # mihomo: https://wiki.metacubex.one/config/proxies/ss/#plugin
-            all_plugins, meta_plugins = ["", "obfs", "v2ray-plugin"], ["shadow-tls", "restls"]
+            all_plugins, meta_plugins = [
+                "", "obfs", "v2ray-plugin"], ["shadow-tls", "restls"]
             if mihomo:
                 all_plugins.extend(meta_plugins)
 
@@ -379,17 +395,25 @@ def verify(item: dict, mihomo: bool = True) -> bool:
 
             # clash: https://clash.wiki/configuration/outbound.html#vmess
             # mihomo: https://wiki.metacubex.one/config/proxies/vmess/#network
-            network, network_opts = item.get("network", "ws"), ["ws", "h2", "http", "grpc"]
+            network, network_opts = item.get("network", "ws"), [
+                "ws", "h2", "http", "grpc"]
             if mihomo:
                 network_opts.append("httpupgrade")
 
             if network not in network_opts:
                 return False
-            if item.get("network", "ws") in ["h2", "grpc"] and not item.get("tls", False):
+            if item.get(
+                "network",
+                "ws") in [
+                "h2",
+                "grpc"] and not item.get(
+                "tls",
+                    False):
                 return False
 
             # mihomo: https://wiki.metacubex.one/config/proxies/vmess/#cipher
-            ciphers = VMESS_SUPPORTED_CIPHERS + ["zero"] if mihomo else VMESS_SUPPORTED_CIPHERS
+            ciphers = VMESS_SUPPORTED_CIPHERS + \
+                ["zero"] if mihomo else VMESS_SUPPORTED_CIPHERS
             if item["cipher"] not in ciphers:
                 return False
             if "alterId" not in item or not utils.is_number(item["alterId"]):
@@ -400,18 +424,19 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                     return False
 
                 h2_opts = item.get("h2-opts", {})
-                if not h2_opts or type(h2_opts) != dict:
+                if not h2_opts or not isinstance(h2_opts, dict):
                     return False
-                if "host" in h2_opts and type(h2_opts["host"]) != list:
+                if "host" in h2_opts and not isinstance(h2_opts["host"], list):
                     return False
             elif "http-opts" in item:
                 if network != "http":
                     return False
 
                 http_opts = item.get("http-opts", {})
-                if not http_opts or type(http_opts) != dict:
+                if not http_opts or not isinstance(http_opts, dict):
                     return False
-                if "path" in http_opts and type(http_opts["path"]) != list:
+                if "path" in http_opts and not isinstance(
+                        http_opts["path"], list):
                     return False
                 if "headers" in http_opts:
                     headers = http_opts.get("headers", {})
@@ -428,11 +453,12 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                     return False
 
                 ws_opts = item.get("ws-opts", {})
-                if not ws_opts or type(ws_opts) != dict:
+                if not ws_opts or not isinstance(ws_opts, dict):
                     return False
-                if "path" in ws_opts and type(ws_opts["path"]) != str:
+                if "path" in ws_opts and not isinstance(ws_opts["path"], str):
                     return False
-                if "headers" in ws_opts and type(ws_opts["headers"]) != dict:
+                if "headers" in ws_opts and not isinstance(
+                        ws_opts["headers"], dict):
                     return False
             elif "grpc-opts" in item:
                 if network != "grpc":
@@ -441,36 +467,42 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                     return False
 
                 grpc_opts = item.get("grpc-opts", {})
-                if not grpc_opts or type(grpc_opts) != dict:
+                if not grpc_opts or not isinstance(grpc_opts, dict):
                     return False
-                if "grpc-service-name" not in grpc_opts or type(grpc_opts["grpc-service-name"]) != str:
+                if "grpc-service-name" not in grpc_opts or not isinstance(
+                        grpc_opts["grpc-service-name"], str):
                     return False
         elif item["type"] == "trojan":
             network = utils.trim(item.get("network", ""))
 
-            if "alpn" in item and type(item["alpn"]) != list:
+            if "alpn" in item and not isinstance(item["alpn"], list):
                 return False
             if "ws-opts" in item:
                 if network != "ws":
                     return False
 
                 ws_opts = item.get("ws-opts", {})
-                if not ws_opts or type(ws_opts) != dict:
+                if not ws_opts or not isinstance(ws_opts, dict):
                     return False
-                if "path" in ws_opts and type(ws_opts["path"]) != str:
+                if "path" in ws_opts and not isinstance(ws_opts["path"], str):
                     return False
-                if "headers" in ws_opts and type(ws_opts["headers"]) != dict:
+                if "headers" in ws_opts and not isinstance(
+                        ws_opts["headers"], dict):
                     return False
             if "grpc-opts" in item:
                 if network != "grpc":
                     return False
 
                 grpc_opts = item.get("grpc-opts", {})
-                if not grpc_opts or type(grpc_opts) != dict:
+                if not grpc_opts or not isinstance(grpc_opts, dict):
                     return False
-                if "grpc-service-name" not in grpc_opts or type(grpc_opts["grpc-service-name"]) != str:
+                if "grpc-service-name" not in grpc_opts or not isinstance(
+                        grpc_opts["grpc-service-name"], str):
                     return False
-            if "flow" in item and (not mihomo or item["flow"] not in ["xtls-rprx-origin", "xtls-rprx-direct"]):
+            if "flow" in item and (
+                not mihomo or item["flow"] not in [
+                    "xtls-rprx-origin",
+                    "xtls-rprx-direct"]):
                 return False
         elif item["type"] == "snell":
             authentication = "psk"
@@ -486,7 +518,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
 
             if "obfs-opts" in item:
                 obfs_opts = item.get("obfs-opts", {})
-                if not obfs_opts or type(obfs_opts) != dict:
+                if not obfs_opts or not isinstance(obfs_opts, dict):
                     return False
                 if "mode" in obfs_opts:
                     mode = utils.trim(obfs_opts.get("mode", ""))
@@ -496,19 +528,34 @@ def verify(item: dict, mihomo: bool = True) -> bool:
             authentication = "userpass"
         elif mihomo and item["type"] in SPECIAL_PROTOCOLS:
             if item["type"] == "anytls":
-                if "alpn" in item and type(item["alpn"]) != list:
+                if "alpn" in item and not isinstance(item["alpn"], list):
                     return False
 
-                for property in ["idle-session-check-interval", "idle-session-timeout", "min-idle-session"]:
-                    if property in item and (not utils.is_number(item[property]) or int(item[property]) < 0):
+                for property in [
+                    "idle-session-check-interval",
+                    "idle-session-timeout",
+                        "min-idle-session"]:
+                    if property in item and (
+                        not utils.is_number(
+                            item[property]) or int(
+                            item[property]) < 0):
                         return False
 
             elif item["type"] == "vless":
                 authentication = "uuid"
                 network = utils.trim(item.get("network", "tcp"))
 
-                # mihomo: https://wiki.metacubex.one/config/proxies/vless/#network
-                network_opts = ["ws", "tcp", "grpc", "http", "h2"] if mihomo else ["ws", "tcp", "grpc"]
+                # mihomo:
+                # https://wiki.metacubex.one/config/proxies/vless/#network
+                network_opts = [
+                    "ws",
+                    "tcp",
+                    "grpc",
+                    "http",
+                    "h2"] if mihomo else [
+                    "ws",
+                    "tcp",
+                    "grpc"]
 
                 if network not in network_opts:
                     return False
@@ -521,26 +568,30 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                         return False
 
                     ws_opts = item.get("ws-opts", {})
-                    if not ws_opts or type(ws_opts) != dict:
+                    if not ws_opts or not isinstance(ws_opts, dict):
                         return False
-                    if "path" in ws_opts and type(ws_opts["path"]) != str:
+                    if "path" in ws_opts and not isinstance(
+                            ws_opts["path"], str):
                         return False
-                    if "headers" in ws_opts and type(ws_opts["headers"]) != dict:
+                    if "headers" in ws_opts and not isinstance(
+                            ws_opts["headers"], dict):
                         return False
                 if "grpc-opts" in item:
                     if network != "grpc":
                         return False
 
                     grpc_opts = item.get("grpc-opts", {})
-                    if not grpc_opts or type(grpc_opts) != dict:
+                    if not grpc_opts or not isinstance(grpc_opts, dict):
                         return False
-                    if "grpc-service-name" not in grpc_opts or type(grpc_opts["grpc-service-name"]) != str:
+                    if "grpc-service-name" not in grpc_opts or not isinstance(
+                            grpc_opts["grpc-service-name"], str):
                         return False
                 if "reality-opts" in item:
                     reality_opts = item.get("reality-opts", {})
-                    if not reality_opts or type(reality_opts) != dict:
+                    if not reality_opts or not isinstance(reality_opts, dict):
                         return False
-                    if "public-key" not in reality_opts or type(reality_opts["public-key"]) != str:
+                    if "public-key" not in reality_opts or not isinstance(
+                            reality_opts["public-key"], str):
                         return False
 
                     content = utils.trim(reality_opts["public-key"])
@@ -551,13 +602,14 @@ def verify(item: dict, mihomo: bool = True) -> bool:
 
                     if "short-id" in reality_opts:
                         short_id = reality_opts["short-id"]
-                        if type(short_id) != str:
+                        if not isinstance(short_id, str):
                             if utils.is_number(short_id):
                                 short_id = str(short_id)
                             else:
                                 return False
 
-                        if len(short_id) != 8 or not is_hex(short_id) or re.match(r"\d+e\d+", short_id, flags=re.I):
+                        if len(short_id) != 8 or not is_hex(short_id) or re.match(
+                                r"\d+e\d+", short_id, flags=re.I):
                             return False
 
                         reality_opts["short-id"] = QuotedStr(short_id)
@@ -582,7 +634,8 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                         item["password"] = password
 
                 for property in ["disable-sni", "reduce-rtt", "fast-open"]:
-                    if property in item and type(item[property]) != bool:
+                    if property in item and not isinstance(
+                            item[property], bool):
                         return False
                 for property in [
                     "heartbeat-interval",
@@ -590,25 +643,26 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                     "max-udp-relay-packet-size",
                     "max-open-streams",
                 ]:
-                    if property in item and not utils.is_number(item[property]):
+                    if property in item and not utils.is_number(
+                            item[property]):
                         return False
-                if "udp-relay-mode" in item and item["udp-relay-mode"] not in ["native", "quic"]:
+                if "udp-relay-mode" in item and item["udp-relay-mode"] not in [
+                        "native", "quic"]:
                     return False
                 if "congestion-controller" in item and item["congestion-controller"] not in [
-                    "cubic",
-                    "bbr",
-                    "new_reno",
-                ]:
+                        "cubic", "bbr", "new_reno", ]:
                     return False
-                if "alpn" in item and type(item["alpn"]) != list:
+                if "alpn" in item and not isinstance(item["alpn"], list):
                     return False
                 if "ip" in item:
                     ip = utils.trim(item.get("ip", ""))
 
                     # ip must be valid ipv4 or ipv6 address
-                    if not re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", ip) and not re.match(
-                        r"^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$", ip
-                    ):
+                    if not re.match(
+                            r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$",
+                            ip) and not re.match(
+                            r"^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$",
+                            ip):
                         return False
             else:
                 for property in ["up", "down"]:
@@ -623,37 +677,47 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                     if traffic and utils.is_number(traffic):
                         traffic = str(traffic)
 
-                    if not re.match(r"^\d+(\.\d+)?(\s+)?([kmgt]?bps)?$", utils.trim(traffic), flags=re.I):
+                    if not re.match(
+                        r"^\d+(\.\d+)?(\s+)?([kmgt]?bps)?$",
+                        utils.trim(traffic),
+                            flags=re.I):
                         return False
 
-                if "alpn" in item and type(item["alpn"]) != list:
+                if "alpn" in item and not isinstance(item["alpn"], list):
                     return False
                 for property in ["ca", "ca-str"]:
-                    if property in item and type(item[property]) != str:
+                    if property in item and not isinstance(
+                            item[property], str):
                         return False
                 if item["type"] == "hysteria2":
-                    # mihomo: https://wiki.metacubex.one/config/proxies/hysteria2
+                    # mihomo:
+                    # https://wiki.metacubex.one/config/proxies/hysteria2
                     authentication = "password"
                     if "obfs" in item:
                         obfs = utils.trim(item.get("obfs", ""))
                         if obfs:
                             if obfs != "salamander":
                                 return False
-                            obfs_password = utils.trim(item.get("obfs-password", ""))
+                            obfs_password = utils.trim(
+                                item.get("obfs-password", ""))
                             if not obfs_password:
                                 return False
 
-                    if "obfs-password" in item and type(item["obfs-password"]) != str:
+                    if "obfs-password" in item and not isinstance(
+                            item["obfs-password"], str):
                         return False
                 else:
-                    # mihomo: https://wiki.metacubex.one/config/proxies/hysteria
+                    # mihomo:
+                    # https://wiki.metacubex.one/config/proxies/hysteria
                     authentication = "auth-str" if "auth-str" in item else "auth_str"
 
                     for property in ["auth-str", "auth_str", "obfs"]:
-                        if property in item and type(item[property]) != str:
+                        if property in item and not isinstance(
+                                item[property], str):
                             return False
                     for property in ["disable_mtu_discovery", "fast-open"]:
-                        if property in item and type(item[property]) != bool:
+                        if property in item and not isinstance(
+                                item[property], bool):
                             return False
                     if "protocol" in item:
                         protocol = utils.trim(item.get("protocol", ""))
@@ -665,9 +729,14 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                             return False
                         for port in ports:
                             # port must be valid port number
-                            if not utils.is_number(port) or int(port) <= 0 or int(port) > 65535:
+                            if not utils.is_number(port) or int(
+                                    port) <= 0 or int(port) > 65535:
                                 return False
-                    for property in ["recv_window_conn", "recv-window-conn", "recv_window", "recv-window"]:
+                    for property in [
+                        "recv_window_conn",
+                        "recv-window-conn",
+                        "recv_window",
+                            "recv-window"]:
                         if property not in item:
                             continue
                         window = item.get(property, "")
@@ -683,19 +752,29 @@ def verify(item: dict, mihomo: bool = True) -> bool:
             item[authentication] = QuotedStr(item[authentication])
 
         return True
-    except:
+    except BaseException:
         return False
 
 
-def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, strict: bool = False) -> bool:
+def check(
+        proxy: dict,
+        api_url: str,
+        timeout: int,
+        test_url: str,
+        delay: int,
+        strict: bool = False) -> bool:
     proxy_name = ""
     try:
         proxy_name = urllib.parse.quote(proxy.get("name", ""), safe="")
-    except:
-        logger.debug(f"encoding proxy name error, proxy: {proxy.get('name', '')}")
+    except BaseException:
+        logger.debug(
+            f"encoding proxy name error, proxy: {
+                proxy.get(
+                    'name', '')}")
         return False
 
-    base_url = f"http://{api_url}/proxies/{proxy_name}/delay?timeout={str(timeout)}&url="
+    base_url = f"http://{api_url}/proxies/{proxy_name}/delay?timeout={
+        str(timeout)}&url="
 
     # 失败重试间隔：30ms ~ 200ms
     interval = random.randint(30, 200) / 1000
@@ -710,16 +789,21 @@ def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, st
         trace = os.getenv("FOOL_PROOF", "").lower() in ["true", "1"]
 
         if trace:
-            # prevents liveness check from being terminated due to a long period of time with no output
-            logger.info(f"start liveness check, proxy: {proxy.get('name', '')}")
+            # prevents liveness check from being terminated due to a long
+            # period of time with no output
+            logger.info(
+                f"start liveness check, proxy: {
+                    proxy.get(
+                        'name', '')}")
 
         for target in targets:
             target = urllib.parse.quote(target)
             url = f"{base_url}{target}"
-            content = utils.http_get(url=url, retry=2, interval=interval, trace=trace)
+            content = utils.http_get(
+                url=url, retry=2, interval=interval, trace=trace)
             try:
                 data = json.loads(content)
-            except:
+            except BaseException:
                 data = {}
 
             if data.get("delay", -1) <= 0 or data.get("delay", -1) > delay:
@@ -727,16 +811,21 @@ def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, st
                 break
 
         if alive:
-            # filter and check US(for speed) proxies as candidates for ChatGPT/OpenAI/New Bing/Google Bard
+            # filter and check US(for speed) proxies as candidates for
+            # ChatGPT/OpenAI/New Bing/Google Bard
             proxy_name = proxy.get("name", "")
-            if proxy.pop("chatgpt", False) and not proxy_name.endswith(utils.CHATGPT_FLAG):
+            if proxy.pop(
+                    "chatgpt",
+                    False) and not proxy_name.endswith(
+                    utils.CHATGPT_FLAG):
                 try:
                     # check for ChatGPT Web: https://chat.openai.com
                     request = urllib.request.Request(
                         url=f"{base_url}https://chat.openai.com/favicon.ico&expected=200",
                         headers=utils.DEFAULT_HTTP_HEADERS,
                     )
-                    response = urllib.request.urlopen(request, timeout=5, context=CTX)
+                    response = urllib.request.urlopen(
+                        request, timeout=5, context=CTX)
                     if response.getcode() == 200:
                         content = str(response.read(), encoding="utf-8")
                         data = json.loads(content)
@@ -745,18 +834,22 @@ def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, st
                     # check for ChatGPT API: https://api.openai.com
                     if allowed:
                         content = utils.http_get(
-                            url=f"{base_url}https://api.openai.com/v1/engines&expected=401",
-                            retry=1,
-                        )
+                            url=f"{base_url}https://api.openai.com/v1/engines&expected=401", retry=1, )
                         data = json.loads(content)
                         if data.get("delay", -1) > 0:
                             proxy["name"] = f"{proxy_name}{utils.CHATGPT_FLAG}"
                 except Exception:
-                    logger.debug(f"check for OpenAI failed, proxy: {proxy.get('name')}, message: {str(e)}")
+                    logger.debug(
+                        f"check for OpenAI failed, proxy: {
+                            proxy.get('name')}, message: {
+                            str(e)}")
 
         return alive
     except Exception as e:
-        logger.debug(f"check failed, proxy: {proxy.get('name')}, message: {str(e)}")
+        logger.debug(
+            f"check failed, proxy: {
+                proxy.get('name')}, message: {
+                str(e)}")
         return False
 
 
@@ -769,7 +862,7 @@ def is_mihomo() -> bool:
         utils.chmod(binpath)
         _, output = utils.cmd([binpath, "-v"], True)
         return re.search("Mihomo Meta", output, flags=re.I) is not None
-    except:
+    except BaseException:
         return False
 
 

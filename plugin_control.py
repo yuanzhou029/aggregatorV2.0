@@ -3,6 +3,7 @@
 插件管理脚本 - 用于控制插件的启停
 """
 
+from plugin_manager.manager import plugin_manager
 import sys
 import os
 import json
@@ -13,15 +14,21 @@ import os
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
-from plugin_manager.manager import plugin_manager
 
 def list_plugins():
     """列出所有插件及其状态"""
     print("当前插件状态:")
     print("-" * 50)
     for name, config in plugin_manager.plugins.items():
-        status = "启用" if config.enabled else "禁用"
-        print(f"插件: {name:20} | 状态: {status:6} | 定时: {config.cron_schedule or '无'}")
+        # 根据配置类型获取属性值
+        if hasattr(config, '__dict__'):  # 对象类型
+            is_enabled = getattr(config, 'enabled', False)
+            cron_schedule = getattr(config, 'cron_schedule', '')
+        else:  # 字典类型
+            is_enabled = config.get('enabled', config.get('enable', True))
+            cron_schedule = config.get('cron_schedule', '')
+        status = "启用" if is_enabled else "禁用"
+        print(f"插件: {name:20} | 状态: {status:6} | 定时: {cron_schedule or '无'}")
 
 
 def enable_plugin(plugin_name):
@@ -73,7 +80,12 @@ def main():
         plugin_name = sys.argv[2]
         if plugin_name in plugin_manager.plugins:
             config = plugin_manager.plugins[plugin_name]
-            status = "启用" if config.enabled else "禁用"
+            # 根据配置类型获取enabled属性
+            if hasattr(config, '__dict__'):  # 对象类型
+                is_enabled = getattr(config, 'enabled', False)
+            else:  # 字典类型
+                is_enabled = config.get('enabled', config.get('enable', True))
+            status = "启用" if is_enabled else "禁用"
             print(f"插件 '{plugin_name}' 状态: {status}")
         else:
             print(f"插件 '{plugin_name}' 不存在")

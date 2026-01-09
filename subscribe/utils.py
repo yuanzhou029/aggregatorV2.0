@@ -34,9 +34,7 @@ CTX = ssl.create_default_context()
 CTX.check_hostname = False
 CTX.verify_mode = ssl.CERT_NONE
 
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-)
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
 
 # 本地路径协议标识
@@ -55,10 +53,17 @@ DEFAULT_HTTP_HEADERS = {
 
 def random_chars(length: int, punctuation: bool = False) -> str:
     length = max(length, 1)
+    import secrets
+
     if punctuation:
-        chars = "".join(random.sample(string.ascii_letters + string.digits + string.punctuation, length))
+        chars = "".join(
+            secrets.choice(string.ascii_letters + string.digits + string.punctuation)
+            for _ in range(length)
+        )
     else:
-        chars = "".join(random.sample(string.ascii_letters + string.digits, length))
+        chars = "".join(
+            secrets.choice(string.ascii_letters + string.digits) for _ in range(length)
+        )
 
     return chars
 
@@ -111,11 +116,15 @@ def http_get(
         status_code = response.getcode()
         try:
             content = str(content, encoding="utf8")
-        except:
+        except BaseException:
             content = gzip.decompress(content).decode("utf8")
         if status_code != 200:
             if trace:
-                logger.error(f"request failed, url: {hide(url)}, code: {status_code}, message: {content}")
+                logger.error(
+                    f"request failed, url: {hide(url)}, code: {status_code}, message: {
+                        content
+                    }"
+                )
 
             return ""
 
@@ -137,12 +146,14 @@ def http_get(
             return ""
     except Exception as e:
         if trace:
-            logger.error(f"request failed, url: {hide(url)}, message: \n{traceback.format_exc()}")
+            logger.error(
+                f"request failed, url: {hide(url)}, message: \n{traceback.format_exc()}"
+            )
 
         if isinstance(e, urllib.error.HTTPError):
             try:
                 message = str(e.read(), encoding="utf8")
-            except:
+            except BaseException:
                 message = "unknown error"
 
             if e.code != 503 or "token" in message:
@@ -205,7 +216,7 @@ def cmd(command: list, output: bool = False) -> tuple[bool, str]:
     if output:
         try:
             content = p.stdout.read().decode("utf8")
-        except:
+        except BaseException:
             content = ""
     return success, content
 
@@ -262,7 +273,9 @@ def encoding_url(url: str) -> str:
             # 对每个参数值进行URL编码
             encoded_query_dict = {}
             for key, values in query_dict.items():
-                encoded_query_dict[key] = [urllib.parse.quote(v, safe="") for v in values]
+                encoded_query_dict[key] = [
+                    urllib.parse.quote(v, safe="") for v in values
+                ]
             # 重新组合查询参数
             query = urllib.parse.urlencode(encoded_query_dict, doseq=True)
 
@@ -304,7 +317,7 @@ def write_file(filename: str, lines: list) -> bool:
             f.flush()
 
         return True
-    except:
+    except BaseException:
         return False
 
 
@@ -313,7 +326,9 @@ def isb64encode(content: str, padding: bool = True) -> bool:
         return False
 
     # 判断是否为base64编码
-    regex = "^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$"
+    regex = (
+        "^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$"
+    )
 
     # 不是标准base64编码的情况，padding
     b64flag = re.match(regex, content)
@@ -325,11 +340,11 @@ def isb64encode(content: str, padding: bool = True) -> bool:
 
 
 def isblank(text: str) -> bool:
-    return not text or type(text) != str or not text.strip()
+    return not text or not isinstance(text, str) or not text.strip()
 
 
 def trim(text: str) -> str:
-    if not text or type(text) != str:
+    if not text or not isinstance(text, str):
         return ""
 
     return text.strip()
@@ -387,13 +402,15 @@ def mask(url: str) -> str:
             token = "".join(re.findall("token=([a-zA-Z0-9]+)", parse_result.query))
             if len(token) >= 6:
                 token = token[:3] + "***" + token[-3:]
-            url = f"{parse_result.scheme}://{parse_result.netloc}{parse_result.path}?token={token}"
+            url = f"{parse_result.scheme}://{parse_result.netloc}{
+                parse_result.path
+            }?token={token}"
         else:
             path, token = parse_result.path.rsplit("/", maxsplit=1)
             if len(token) >= 6:
                 token = token[:3] + "***" + token[-3:]
             url = f"{parse_result.scheme}://{parse_result.netloc}{path}/{token}"
-    except:
+    except BaseException:
         logger.error(f"invalid url: {url}")
 
     return url
@@ -419,7 +436,7 @@ def http_post(
     timeout: float = 6,
     allow_redirects: bool = True,
 ) -> HTTPResponse:
-    if params is None or type(params) != dict or retry <= 0:
+    if params is None or not isinstance(params, dict) or retry <= 0:
         return None
 
     timeout, retry = max(timeout, 1), retry - 1
@@ -430,7 +447,9 @@ def http_post(
         }
     try:
         data = json.dumps(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url=url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url=url, data=data, headers=headers, method="POST"
+        )
         if allow_redirects:
             return urllib.request.urlopen(request, timeout=timeout, context=CTX)
 
@@ -448,7 +467,7 @@ def http_post(
 
 
 def verify_uuid(text: str) -> bool:
-    if not text or type(text) != str:
+    if not text or not isinstance(text, str):
         return False
 
     try:
@@ -491,7 +510,8 @@ def load_emoji_pattern(filepath: str = "") -> dict:
         logger.warning(f"cannot parse emoji config due to file {filepath} not exists")
         return {}
 
-    # see: https://github.com/tindy2013/subconverter/blob/master/base/snippets/emoji.txt
+    # see:
+    # https://github.com/tindy2013/subconverter/blob/master/base/snippets/emoji.txt
     patterns = {}
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f.readlines():
@@ -510,7 +530,7 @@ def load_emoji_pattern(filepath: str = "") -> dict:
 
 
 def get_emoji(text: str, patterns: dict, default: str = "") -> str:
-    if not patterns or type(patterns) != dict or not text or type(text) != str:
+    if not patterns or not isinstance(patterns, type(text)) != str:
         return default
 
     for pattern, emoji in patterns.items():
@@ -535,7 +555,7 @@ def multi_process_run(func: typing.Callable, tasks: list) -> list:
         logger.error(f"skip execute due to func is not callable")
         return []
 
-    if not tasks or type(tasks) != list:
+    if not tasks or not isinstance(tasks, list):
         logger.error(f"skip execute due to tasks is empty or invalid")
         return []
 
@@ -559,7 +579,9 @@ def multi_process_run(func: typing.Callable, tasks: list) -> list:
 
     funcname = getattr(func, "__name__", repr(func))
     logger.info(
-        f"[Concurrent] multi-process concurrent execute [{funcname}] finished, count: {len(tasks)}, cost: {time.time()-starttime:.2f}s"
+        f"[Concurrent] multi-process concurrent execute [{funcname}] finished, count: {
+            len(tasks)
+        }, cost: {time.time() - starttime:.2f}s"
     )
 
     return results
@@ -583,15 +605,20 @@ def multi_thread_run(
     results, starttime = [None] * len(tasks), time.time()
     with futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         if isinstance(tasks[0], (list, tuple)):
-            collections = {executor.submit(func, *param): i for i, param in enumerate(tasks)}
+            collections = {
+                executor.submit(func, *param): i for i, param in enumerate(tasks)
+            }
         else:
-            collections = {executor.submit(func, param): i for i, param in enumerate(tasks)}
+            collections = {
+                executor.submit(func, param): i for i, param in enumerate(tasks)
+            }
 
         items = futures.as_completed(collections)
         if show_progress:
             description = trim(description) or "Progress"
 
-            # TODO: use p_tqdm instead of tqdm, see https://github.com/swansonk14/p_tqdm
+            # TODO: use p_tqdm instead of tqdm, see
+            # https://github.com/swansonk14/p_tqdm
             items = tqdm(items, total=len(collections), desc=description, leave=True)
 
         for future in items:
@@ -600,10 +627,14 @@ def multi_thread_run(
                 index = collections[future]
                 results[index] = result
             except Exception as e:
-                logger.error(f"function {funcname} execution generated an exception: {e}")
+                logger.error(
+                    f"function {funcname} execution generated an exception: {e}"
+                )
 
     logger.info(
-        f"[Concurrent] multi-threaded execute [{funcname}] finished, count: {len(tasks)}, cost: {time.time()-starttime:.2f}s"
+        f"[Concurrent] multi-threaded execute [{funcname}] finished, count: {
+            len(tasks)
+        }, cost: {time.time() - starttime:.2f}s"
     )
 
     return results

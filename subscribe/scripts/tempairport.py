@@ -17,14 +17,23 @@ from . import commons, scaner
 
 
 def register(
-    domain: str, subtype: int = 1, coupon: str = "", rigid: bool = True, chuck: bool = False, invite_code: str = ""
-) -> AirPort:
+        domain: str,
+        subtype: int = 1,
+        coupon: str = "",
+        rigid: bool = True,
+        chuck: bool = False,
+        invite_code: str = "") -> AirPort:
     url = utils.extract_domain(url=domain, include_protocal=True)
     if not isurl(url=url):
-        logger.error(f"[TempSubError] cannot register because domain=[{domain}] is invalidate")
+        logger.error(
+            f"[TempSubError] cannot register because domain=[{domain}] is invalidate")
         return None
 
-    airport = AirPort(name=domain.split("//")[1], site=url, sub="", coupon=coupon)
+    airport = AirPort(
+        name=domain.split("//")[1],
+        site=url,
+        sub="",
+        coupon=coupon)
     if issspanel(domain=url):
         email = utils.random_chars(length=8, punctuation=False) + "@gmail.com"
         passwd = utils.random_chars(length=10, punctuation=True)
@@ -37,32 +46,41 @@ def register(
         airport.password = passwd
         airport.sub = suburl
     else:
-        airport.get_subscribe(retry=3, rigid=rigid, chuck=chuck, invite_code=invite_code)
+        airport.get_subscribe(
+            retry=3,
+            rigid=rigid,
+            chuck=chuck,
+            invite_code=invite_code)
 
     return airport
 
 
 def fetchsub(params: dict) -> list:
-    if not params or type(params) != dict:
+    if not params or not isinstance(params, dict):
         return []
 
     config = params.get("config", {})
     storage = params.get("storage", {})
-    if not storage or type(storage) != dict:
-        logger.error(f"[TempSubError] cannot fetch subscribes bcause storage config is invalidate")
+    if not storage or not isinstance(storage, dict):
+        logger.error(
+            f"[TempSubError] cannot fetch subscribes bcause storage config is invalidate")
         return []
 
     persist = storage.get("items", {})
     push_config = push.PushConfig.from_dict(storage)
 
     threshold = max(params.get("threshold", 1), 1)
-    if not persist or not config or type(config) != dict or not config.get("push_to"):
-        logger.error(f"[TempSubError] cannot fetch subscribes bcause not found arguments 'persist' or 'push_to'")
+    if not persist or not config or not isinstance(
+            config, dict) or not config.get("push_to"):
+        logger.error(
+            f"[TempSubError] cannot fetch subscribes bcause not found arguments 'persist' or 'push_to'")
         return []
 
-    exists, unregisters, unknowns, data = load(config=push_config, persist=persist, retry=params.get("retry", True))
+    exists, unregisters, unknowns, data = load(
+        config=push_config, persist=persist, retry=params.get("retry", True))
     if not exists and not unregisters and unknowns:
-        logger.warning(f"[TempSubError] skip fetchsub because cannot get any valid config")
+        logger.warning(
+            f"[TempSubError] skip fetchsub because cannot get any valid config")
         return []
 
     if unregisters:
@@ -77,12 +95,15 @@ def fetchsub(params: dict) -> list:
 
             if not airport.available or not airport.sub:
                 logger.error(
-                    f"[TempSubInfo] cannot get subscribe because domain=[{airport.ref}] forced validation or need pay"
-                )
+                    f"[TempSubInfo] cannot get subscribe because domain=[{
+                        airport.ref}] forced validation or need pay")
                 if not utils.isblank(airport.sub):
                     logger.warning(
-                        f"[TempSubInfo] renew error, domain: {airport.ref} username: {airport.username} password: {airport.password} sub: {airport.sub}"
-                    )
+                        f"[TempSubInfo] renew error, domain: {
+                            airport.ref} username: {
+                            airport.username} password: {
+                            airport.password} sub: {
+                            airport.sub}")
 
                 defeat = task.get("defeat", 0) + 1
                 if defeat > threshold:
@@ -105,7 +126,8 @@ def fetchsub(params: dict) -> list:
         commons.persist(config=push_config, data=payload, persist=persist)
 
     if not exists:
-        logger.info(f"[TempSubInfo] fetchsub finished, cannot found any subscribes")
+        logger.info(
+            f"[TempSubInfo] fetchsub finished, cannot found any subscribes")
         return []
 
     results = []
@@ -119,16 +141,23 @@ def fetchsub(params: dict) -> list:
             item.update(subscribe.get("config"))
 
         if utils.isblank(item.get("name", "")):
-            item["name"] = utils.extract_domain(url=item["sub"], include_protocal=False).replace(".", "-")
+            item["name"] = utils.extract_domain(
+                url=item["sub"],
+                include_protocal=False).replace(
+                ".",
+                "-")
         item["push_to"] = list(set(item.get("push_to", [])))
         item["saved"] = True
         results.append(item)
 
-    logger.info(f"[TempSubInfo] fetchsub finished, found {len(results)} subscribes")
+    logger.info(
+        f"[TempSubInfo] fetchsub finished, found {
+            len(results)} subscribes")
     return results
 
 
-def load(config: push.PushConfig, persist: dict, retry: bool = False) -> tuple[dict, list, dict, dict]:
+def load(config: push.PushConfig, persist: dict,
+         retry: bool = False) -> tuple[dict, list, dict, dict]:
     pushtool = push.get_instance(config=config)
     if not pushtool.validate(config=persist):
         return {}, [], {}, {}
@@ -161,7 +190,8 @@ def load(config: push.PushConfig, persist: dict, retry: bool = False) -> tuple[d
                         chuck = v.get("chuck", False)
                         invite_code = v.get("invite_code", "")
 
-                        unregisters.append([k, v.get("type", 1), coupon, rigid, chuck, invite_code])
+                        unregisters.append(
+                            [k, v.get("type", 1), coupon, rigid, chuck, invite_code])
 
                     unknowns.pop(k, None)
 
@@ -179,7 +209,8 @@ def load(config: push.PushConfig, persist: dict, retry: bool = False) -> tuple[d
         for i in range(len(results)):
             if not results[i]:
                 item = exists.pop(domains[i], {})
-                unregisters.append([domains[i], item.get("type", 1), item.get("coupon", "")])
+                unregisters.append([domains[i], item.get(
+                    "type", 1), item.get("coupon", "")])
 
         # 去重
         if unregisters:
@@ -187,5 +218,5 @@ def load(config: push.PushConfig, persist: dict, retry: bool = False) -> tuple[d
             unregisters = [[k, v[0], v[1]] for k, v in data.items()]
 
         return exists, unregisters, unknowns, rawdata
-    except:
+    except BaseException:
         return {}, [], {}, {}

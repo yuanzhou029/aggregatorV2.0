@@ -65,10 +65,15 @@ class Plan:
     trafficflow: float
 
 
-def get_cookies(
-    domain: str, username: str, password: str, retry: int = 3, api_prefix: str = "", jsonify: bool = False
-) -> tuple[str, str]:
-    if utils.isblank(domain) or utils.isblank(username) or utils.isblank(password):
+def get_cookies(domain: str,
+                username: str,
+                password: str,
+                retry: int = 3,
+                api_prefix: str = "",
+                jsonify: bool = False) -> tuple[str,
+                                                str]:
+    if utils.isblank(domain) or utils.isblank(
+            username) or utils.isblank(password):
         return "", ""
 
     login_url = domain + utils.get_subpath(api_prefix) + "passport/auth/login"
@@ -86,7 +91,11 @@ def get_cookies(
     return utils.extract_cookie(text), authorization
 
 
-def generate_headers(domain: str, cookies: str, authorization: str, headers: dict = None) -> dict:
+def generate_headers(
+        domain: str,
+        cookies: str,
+        authorization: str,
+        headers: dict = None) -> dict:
     if not headers:
         headers = {"user-agent": utils.USER_AGENT}
 
@@ -100,7 +109,8 @@ def generate_headers(domain: str, cookies: str, authorization: str, headers: dic
     return headers
 
 
-def login(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool = False) -> tuple[str, str]:
+def login(url: str, params: dict, headers: dict, retry: int = 3,
+          jsonify: bool = False) -> tuple[str, str]:
     if not params:
         logger.error("[RenewalError] cannot login because parameters is empty")
         return "", ""
@@ -112,23 +122,27 @@ def login(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool =
         else:
             data = urllib.parse.urlencode(params).encode(encoding="UTF8")
 
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
 
         cookies, authorization = "", ""
         if response.getcode() == 200:
             cookies = response.getheader("Set-Cookie")
             try:
-                data = json.loads(response.read().decode("UTF8")).get("data", {})
+                data = json.loads(
+                    response.read().decode("UTF8")).get(
+                    "data", {})
                 authorization = data.get("auth_data", "")
-            except:
+            except BaseException:
                 logger.error(response.read().decode("UTF8"))
         else:
             logger.info(response.read().decode("UTF8"))
 
         return cookies, authorization
 
-    except:
+    except BaseException:
         retry -= 1
         if retry > 0:
             return login(url, params, headers, retry, jsonify)
@@ -137,7 +151,12 @@ def login(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool =
         return "", ""
 
 
-def order(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool = False) -> str:
+def order(
+        url: str,
+        params: dict,
+        headers: dict,
+        retry: int = 3,
+        jsonify: bool = False) -> str:
     try:
         if jsonify:
             headers["Content-Type"] = "application/json"
@@ -145,8 +164,10 @@ def order(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool =
         else:
             data = urllib.parse.urlencode(params).encode(encoding="UTF8")
 
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
 
         trade_no = None
         if response.getcode() == 200:
@@ -157,7 +178,7 @@ def order(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool =
 
         return trade_no
 
-    except:
+    except BaseException:
         retry -= 1
         if retry > 0:
             return order(url, params, headers, retry, jsonify)
@@ -168,7 +189,8 @@ def order(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool =
 def fetch(url: str, headers: dict, retry: int = 3) -> str:
     try:
         request = urllib.request.Request(url, headers=headers, method="GET")
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
         if response.getcode() != 200:
             logger.info(response.read().decode("UTF8"))
             return None
@@ -181,7 +203,7 @@ def fetch(url: str, headers: dict, retry: int = 3) -> str:
 
         return None
 
-    except:
+    except BaseException:
         retry -= 1
         if retry > 0:
             return fetch(url, headers, retry)
@@ -189,15 +211,22 @@ def fetch(url: str, headers: dict, retry: int = 3) -> str:
         logger.error("[FetchError] URL: {}".format(utils.extract_domain(url)))
 
 
-def payment(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool = False) -> bool:
+def payment(
+        url: str,
+        params: dict,
+        headers: dict,
+        retry: int = 3,
+        jsonify: bool = False) -> bool:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
         if jsonify:
             headers["Content-Type"] = "application/json"
             data = json.dumps(params).encode(encoding="UTF8")
 
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
 
         success = False
         if response.getcode() == 200:
@@ -208,12 +237,14 @@ def payment(url: str, params: dict, headers: dict, retry: int = 3, jsonify: bool
 
         return success
 
-    except:
+    except BaseException:
         retry -= 1
         if retry > 0:
             return payment(url, params, headers, retry, jsonify)
 
-        logger.error("[PaymentError] URL: {}".format(utils.extract_domain(url)))
+        logger.error(
+            "[PaymentError] URL: {}".format(
+                utils.extract_domain(url)))
         return False
 
 
@@ -230,11 +261,12 @@ def checkout(
     if utils.isblank(domain) or utils.isblank(coupon):
         return {}
 
-    link = utils.get_subpath(api_prefix) + "user/coupon/check" if utils.isblank(link) else link
+    link = utils.get_subpath(
+        api_prefix) + "user/coupon/check" if utils.isblank(link) else link
     try:
         url = f"{domain}{link}"
         params = {"code": coupon}
-        if type(planid) == int and planid >= 0:
+        if isinstance(planid, int) and planid >= 0:
             params["plan_id"] = planid
 
         if jsonify:
@@ -243,8 +275,10 @@ def checkout(
         else:
             payload = urllib.parse.urlencode(params).encode(encoding="UTF8")
 
-        request = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        request = urllib.request.Request(
+            url, data=payload, headers=headers, method="POST")
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
 
         data = {}
         if response.getcode() == 200:
@@ -273,14 +307,22 @@ def checkout(
 
 
 def get_payment_method(
-    domain: str, cookies: str, authorization: str = "", retry: int = 3, api_prefix: str = ""
-) -> list:
+        domain: str,
+        cookies: str,
+        authorization: str = "",
+        retry: int = 3,
+        api_prefix: str = "") -> list:
     if not domain or (not cookies and not authorization):
-        logger.error(f"query payment method error, cookies and authorization is empty, domain: {domain}")
+        logger.error(
+            f"query payment method error, cookies and authorization is empty, domain: {domain}")
         return []
 
-    url = domain + utils.get_subpath(api_prefix) + "user/order/getPaymentMethod"
-    headers = generate_headers(domain=domain, cookies=cookies, authorization=authorization)
+    url = domain + utils.get_subpath(api_prefix) + \
+        "user/order/getPaymentMethod"
+    headers = generate_headers(
+        domain=domain,
+        cookies=cookies,
+        authorization=authorization)
 
     content = utils.http_get(url=url, headers=headers, retry=retry)
     if not content:
@@ -289,14 +331,17 @@ def get_payment_method(
         data = json.loads(content).get("data", [])
         methods = [item.get("id") for item in data if item.get("id", -1) >= 0]
         return methods
-    except:
-        logger.error(f"cannot get payment method because response is empty, domain: {domain}")
+    except BaseException:
+        logger.error(
+            f"cannot get payment method because response is empty, domain: {domain}")
         return []
 
 
-def unclosed_ticket(domain: str, headers: dict, api_prefix: str = "") -> tuple[int, int, str]:
+def unclosed_ticket(domain: str, headers: dict,
+                    api_prefix: str = "") -> tuple[int, int, str]:
     if utils.isblank(domain) or not headers:
-        logger.info(f"[TicketError] cannot fetch tickets because invalidate arguments, domain: {domain}")
+        logger.info(
+            f"[TicketError] cannot fetch tickets because invalidate arguments, domain: {domain}")
         return -1, -1, ""
 
     url = domain + utils.get_subpath(api_prefix) + "user/ticket/fetch"
@@ -313,16 +358,22 @@ def unclosed_ticket(domain: str, headers: dict, api_prefix: str = "") -> tuple[i
                 break
 
         return tid, timestamp, subject
-    except:
-        logger.error(f"[TicketError] failed fetch last ticket, domain: {domain}, content: {content}")
+    except BaseException:
+        logger.error(
+            f"[TicketError] failed fetch last ticket, domain: {domain}, content: {content}")
         return -1, -1, ""
 
 
 def close_ticket(
-    domain: str, tid: int, headers: dict, retry: int = 3, api_prefix: str = "", jsonify: bool = False
-) -> bool:
+        domain: str,
+        tid: int,
+        headers: dict,
+        retry: int = 3,
+        api_prefix: str = "",
+        jsonify: bool = False) -> bool:
     if utils.isblank(domain) or tid < 0 or not headers or retry <= 0:
-        logger.info(f"[TicketError] cannot close ticket because invalidate arguments, domain: {domain}, tid: {tid}")
+        logger.info(
+            f"[TicketError] cannot close ticket because invalidate arguments, domain: {domain}, tid: {tid}")
 
     url = domain + utils.get_subpath(api_prefix) + "user/ticket/close"
     params = {"id": tid}
@@ -333,19 +384,22 @@ def close_ticket(
             headers["Content-Type"] = "application/json"
             data = json.dumps(params).encode(encoding="UTF8")
 
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
 
         if response.getcode() == 200:
             content = response.read().decode("UTF8")
             try:
                 return json.loads(content).get("data", False)
-            except:
-                logger.error(f"[TicketError] failed submit ticket, domain: {domain}, message: {content}")
+            except BaseException:
+                logger.error(
+                    f"[TicketError] failed submit ticket, domain: {domain}, message: {content}")
 
         return False
 
-    except:
+    except BaseException:
         return close_ticket(
             domain=domain,
             tid=tid,
@@ -366,15 +420,19 @@ def submit_ticket(
     jsonify: bool = False,
 ) -> bool:
     if retry <= 0:
-        logger.error(f"[TicketError] achieved max retry when submit ticket, domain: {domain}")
+        logger.error(
+            f"[TicketError] achieved max retry when submit ticket, domain: {domain}")
         return False
 
-    if utils.isblank(domain) or (utils.isblank(cookies) and utils.isblank(authorization)):
-        logger.error(f"[TicketError] submit ticket error, cookies and authorization is empty, domain: {domain}")
+    if utils.isblank(domain) or (utils.isblank(cookies)
+                                 and utils.isblank(authorization)):
+        logger.error(
+            f"[TicketError] submit ticket error, cookies and authorization is empty, domain: {domain}")
         return False
 
-    if not ticket or type(ticket) != dict:
-        logger.info(f"[TicketError] skip submit ticket because subject or message is empty, domain: {domain}")
+    if not ticket or not isinstance(ticket, dict):
+        logger.info(
+            f"[TicketError] skip submit ticket because subject or message is empty, domain: {domain}")
         return False
 
     subject = ticket.get("subject", "")
@@ -383,15 +441,21 @@ def submit_ticket(
     level = level if level in [0, 1, 2] else 1
 
     if utils.isblank(subject) or utils.isblank(message):
-        logger.info(f"[TicketError] skip submit ticket because subject or message is empty, domain: {domain}")
+        logger.info(
+            f"[TicketError] skip submit ticket because subject or message is empty, domain: {domain}")
         return False
 
-    headers = generate_headers(domain=domain, cookies=cookies, authorization=authorization)
+    headers = generate_headers(
+        domain=domain,
+        cookies=cookies,
+        authorization=authorization)
 
     # check last unclosed ticket
-    tid, timestamp, title = unclosed_ticket(domain=domain, headers=headers, api_prefix=api_prefix)
+    tid, timestamp, title = unclosed_ticket(
+        domain=domain, headers=headers, api_prefix=api_prefix)
     if tid > 0 and timestamp > 0:
-        # do not submit ticket if there are unclosed tickets in the last three days
+        # do not submit ticket if there are unclosed tickets in the last three
+        # days
         if time.time() - timestamp < 259200000:
             date = datetime.fromtimestamp(timestamp)
             logger.info(
@@ -402,11 +466,15 @@ def submit_ticket(
         logger.info(
             f"[TicketInfo] found a unclosed ticket, domain: {domain}, tid: {tid}, subject: {title}, try close it now"
         )
-        success = close_ticket(domain=domain, tid=tid, headers=headers, api_prefix=api_prefix, jsonify=jsonify)
+        success = close_ticket(
+            domain=domain,
+            tid=tid,
+            headers=headers,
+            api_prefix=api_prefix,
+            jsonify=jsonify)
         if not success:
             logger.error(
-                f"[TicketError] cannot submit a ticket because found an unclosed ticket but cannot close it, domain: {domain}, tid: {tid}, subject: {title}"
-            )
+                f"[TicketError] cannot submit a ticket because found an unclosed ticket but cannot close it, domain: {domain}, tid: {tid}, subject: {title}")
             return False
 
     url = domain + utils.get_subpath(api_prefix) + "user/ticket/save"
@@ -419,19 +487,22 @@ def submit_ticket(
         else:
             data = urllib.parse.urlencode(params).encode(encoding="UTF8")
 
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
+        response = urllib.request.urlopen(
+            request, timeout=10, context=utils.CTX)
 
         if response.getcode() == 200:
             content = response.read().decode("UTF8")
             try:
                 return json.loads(content).get("data", False)
-            except:
-                logger.error(f"[TicketError] failed submit ticket, domain: {domain}, message: {content}")
+            except BaseException:
+                logger.error(
+                    f"[TicketError] failed submit ticket, domain: {domain}, message: {content}")
 
         return False
 
-    except:
+    except BaseException:
         return submit_ticket(
             domain=domain,
             cookies=cookies,
@@ -453,12 +524,16 @@ def get_free_plan(
     jsonify: bool = False,
 ) -> Plan:
     if not domain or (not cookies and not authorization):
-        logger.error(f"fetch free plans error, cookies and authorization is empty, domain: {domain}")
+        logger.error(
+            f"fetch free plans error, cookies and authorization is empty, domain: {domain}")
         return None
 
     api_prefix = utils.get_subpath(api_prefix)
     url = domain + api_prefix + "user/plan/fetch"
-    headers = generate_headers(domain=domain, cookies=cookies, authorization=authorization)
+    headers = generate_headers(
+        domain=domain,
+        cookies=cookies,
+        authorization=authorization)
     content = utils.http_get(url=url, headers=headers, retry=retry)
     if not content:
         return None
@@ -482,7 +557,11 @@ def get_free_plan(
             package, planid = "", plan.get("id", -1)
             for p in PACKAGES:
                 price = plan.get(p, None)
-                if not isfree(planid=str(planid), package=p, price=price, discount=discount):
+                if not isfree(
+                        planid=str(planid),
+                        package=p,
+                        price=price,
+                        discount=discount):
                     continue
                 package = p
 
@@ -509,8 +588,9 @@ def get_free_plan(
         # 查找流量最多的免费套餐
         sorted(plans, key=lambda x: x.trafficflow, reverse=True)
         return plans[0]
-    except:
-        logger.error(f"cannot fetch free plans because response is empty, domain: {domain}")
+    except BaseException:
+        logger.error(
+            f"cannot fetch free plans because response is empty, domain: {domain}")
         return None
 
 
@@ -533,7 +613,8 @@ def isfree(planid: str, package: str, price: float, discount: dict) -> bool:
     packages = discount.get("limit_period", None)
 
     # 不在优惠范围内
-    if (planids and planid not in planids) or (packages and package not in packages):
+    if (planids and planid not in planids) or (
+            packages and package not in packages):
         return False
 
     # 优惠类型 1代表实际金额，2代表比例
@@ -548,14 +629,21 @@ def isfree(planid: str, package: str, price: float, discount: dict) -> bool:
 
 
 def get_subscribe_info(
-    domain: str, cookies: str, authorization: str = "", retry: int = 3, api_prefix: str = ""
-) -> SubscribeInfo:
+        domain: str,
+        cookies: str,
+        authorization: str = "",
+        retry: int = 3,
+        api_prefix: str = "") -> SubscribeInfo:
     if not domain or (not cookies and not authorization):
-        logger.error(f"query subscribe information error, cookies and authorization is empty, domain: {domain}")
+        logger.error(
+            f"query subscribe information error, cookies and authorization is empty, domain: {domain}")
         return None
 
     url = domain + utils.get_subpath(api_prefix) + "user/getSubscribe"
-    headers = generate_headers(domain=domain, cookies=cookies, authorization=authorization)
+    headers = generate_headers(
+        domain=domain,
+        cookies=cookies,
+        authorization=authorization)
 
     content = utils.http_get(url=url, headers=headers, retry=retry)
     if not content:
@@ -603,8 +691,9 @@ def get_subscribe_info(
             sub_url=sub_url,
             reset_day=reset_day,
         )
-    except:
-        logger.error(f"cannot get subscribe information, domain: {domain}, response: {content}")
+    except BaseException:
+        logger.error(
+            f"cannot get subscribe information, domain: {domain}, response: {content}")
         return None
 
 
@@ -626,7 +715,8 @@ def flow(
 
     fetch_url = domain + params.get("fetch", f"{api_prefix}user/order/fetch")
     order_url = domain + params.get("order", f"{api_prefix}user/order/save")
-    payment_url = domain + params.get("payment", f"{api_prefix}user/order/checkout")
+    payment_url = domain + \
+        params.get("payment", f"{api_prefix}user/order/checkout")
     method = params.get("method", 1)
     coupon = params.get("coupon_code", "")
 
@@ -640,14 +730,20 @@ def flow(
             "password": params.get("passwd", ""),
         }
 
-        login_url = domain + params.get("login", f"{api_prefix}passport/auth/login")
-        text, authorization = login(login_url, user_info, headers, retry, jsonify)
+        login_url = domain + params.get("login",
+                                        f"{api_prefix}passport/auth/login")
+        text, authorization = login(
+            login_url, user_info, headers, retry, jsonify)
         cookies = utils.extract_cookie(text)
 
     if len(cookies) <= 0 and not authorization:
         return False
 
-    headers = generate_headers(domain=domain, cookies=cookies, authorization=authorization, headers=headers)
+    headers = generate_headers(
+        domain=domain,
+        cookies=cookies,
+        authorization=authorization,
+        headers=headers)
     trade_no = fetch(fetch_url, headers, retry)
 
     if trade_no:
@@ -705,7 +801,8 @@ def add_traffic_flow(domain: str, params: dict, jsonify: bool = False) -> str:
         email = base64.b64decode(params.get("email", "")).decode()
         password = base64.b64decode(params.get("passwd", "")).decode()
         if utils.isblank(email) or utils.isblank(password):
-            logger.info(f"[RenewalError] email or password cannot be empty, domain: {domain}")
+            logger.info(
+                f"[RenewalError] email or password cannot be empty, domain: {domain}")
             return ""
 
         api_prefix = params.get("api_prefix", "")
@@ -762,20 +859,21 @@ def add_traffic_flow(domain: str, params: dict, jsonify: bool = False) -> str:
                 cookies=cookies,
                 authorization=authorization,
             )
-            logger.info("reset {}, domain: {}".format("success" if success else "fail", domain))
+            logger.info(
+                "reset {}, domain: {}".format(
+                    "success" if success else "fail",
+                    domain))
         else:
             logger.info(
-                f"skip reset traffic plan, domain: {domain}\trenew: {renew}\tenable: {subscribe.reset_enable}\tused-rate: {subscribe.used_rate}"
-            )
+                f"skip reset traffic plan, domain: {domain}\trenew: {renew}\tenable: {
+                    subscribe.reset_enable}\tused-rate: {
+                    subscribe.used_rate}")
 
         subscribe.renew_enable = subscribe.renew_enable and (
             not utils.isblank(package) or not utils.isblank(coupon_code)
         )
-        if (
-            renew
-            and subscribe.renew_enable
-            and (subscribe.expired_days <= 5 or (not subscribe.reset_enable and subscribe.used_rate >= 0.8))
-        ):
+        if (renew and subscribe.renew_enable and (subscribe.expired_days <=
+                                                  5 or (not subscribe.reset_enable and subscribe.used_rate >= 0.8))):
             success = flow(
                 domain=domain,
                 params=payload,
@@ -783,15 +881,19 @@ def add_traffic_flow(domain: str, params: dict, jsonify: bool = False) -> str:
                 cookies=cookies,
                 authorization=authorization,
             )
-            logger.info("renew {}, domain: {}".format("success" if success else "fail", domain))
+            logger.info(
+                "renew {}, domain: {}".format(
+                    "success" if success else "fail",
+                    domain))
         else:
             logger.info(
-                f"skip renew traffic plan, domain: {domain}\trenew: {renew}\tenable: {subscribe.renew_enable}\texpired-days: {subscribe.expired_days}"
-            )
+                f"skip renew traffic plan, domain: {domain}\trenew: {renew}\tenable: {
+                    subscribe.renew_enable}\texpired-days: {
+                    subscribe.expired_days}")
 
         # 提交工单重置流量
         ticket = params.get("ticket", {})
-        if ticket and type(ticket) == dict:
+        if ticket and isinstance(ticket, dict):
             enable = ticket.pop("enable", True)
             autoreset = ticket.pop("autoreset", False)
             # 过期时间 <= 5 或者 流量使用例 >= 0.8 或者 重置日期 <= 1 且不会自动重置时提交工单
@@ -808,9 +910,11 @@ def add_traffic_flow(domain: str, params: dict, jsonify: bool = False) -> str:
                     jsonify=jsonify,
                 )
 
-                logger.info(f"ticket submit {'successed' if success else 'failed'}, domain: {domain}")
+                logger.info(
+                    f"ticket submit {
+                        'successed' if success else 'failed'}, domain: {domain}")
 
         return subscribe.sub_url
-    except:
+    except BaseException:
         traceback.print_exc()
         return ""

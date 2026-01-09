@@ -79,9 +79,27 @@ const ConfigManager: React.FC = () => {
     }
   };
 
+  const validateSystemConfig = async (config: any) => {
+    try {
+      const response = await axios.post('http://localhost:5000/api/config/system/validate', config);
+      return response.data;
+    } catch (error) {
+      console.error('验证系统配置失败:', error);
+      return { success: false, error: '验证请求失败' };
+    }
+  };
+
   const saveSystemConfig = async () => {
     try {
       const values = await systemForm.validateFields();
+      
+      // 首先验证配置
+      const validation = await validateSystemConfig(values);
+      if (!validation.success) {
+        message.error(validation.message || validation.error || '配置验证失败');
+        return;
+      }
+      
       const response = await axios.put('http://localhost:5000/api/config/system', values);
       if (response.data.success) {
         message.success('系统配置已保存');

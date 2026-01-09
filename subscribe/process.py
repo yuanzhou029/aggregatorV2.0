@@ -83,7 +83,11 @@ def load_configs(
         params["exclude"] = crawl_conf.get("exclude", "")
 
         # persistence configuration
-        persist = {k: storage.get("items", {}).get(v, {}) for k, v in crawl_conf.get("persist", {}).items()}
+        persist = {
+            k: storage.get(
+                "items", {}).get(
+                v, {}) for k, v in crawl_conf.get(
+                "persist", {}).items()}
         params["storage"] = {"items": persist, **push_conf}
 
         params["config"] = crawl_conf.get("config", {})
@@ -99,10 +103,12 @@ def load_configs(
         users = telegram_conf.pop("users", {})
         telegram_conf["pages"] = max(telegram_conf.get("pages", 1), 1)
         if telegram_conf.pop("enable", True) and users:
-            enabled_users, common_exclude = {}, telegram_conf.pop("exclude", "")
+            enabled_users, common_exclude = {
+            }, telegram_conf.pop("exclude", "")
             for k, v in users.items():
                 exclude = v.get("exclude", "").strip()
-                v["exclude"] = f"{exclude}|{common_exclude}".removeprefix("|") if common_exclude else exclude
+                v["exclude"] = f"{exclude}|{common_exclude}".removeprefix(
+                    "|") if common_exclude else exclude
                 v["push_to"] = list(set(v.get("push_to", [])))
 
                 enabled_users[k] = v
@@ -139,7 +145,8 @@ def load_configs(
         if twitter_conf.pop("enable", True) and users:
             enabled_users = {}
             for k, v in users.items():
-                if utils.isblank(k) or not v or type(v) != dict or not v.pop("enable", True):
+                if utils.isblank(k) or not v or not isinstance(
+                        v, dict) or not v.pop("enable", True):
                     continue
 
                 v["push_to"] = list(set(v.get("push_to", [])))
@@ -187,7 +194,8 @@ def load_configs(
                             pages[u] = page
             else:
                 placeholder = utils.trim(page.pop("placeholder", ""))
-                if not placeholder or placeholder not in url or not isinstance(url, str):
+                if not placeholder or placeholder not in url or not isinstance(
+                        url, str):
                     continue
 
                 # page number range
@@ -195,7 +203,7 @@ def load_configs(
                 try:
                     start = int(page.pop("start", 1))
                     end = int(page.pop("end", 1))
-                except:
+                except BaseException:
                     pass
 
                 if start < 0 or end < start:
@@ -224,7 +232,9 @@ def load_configs(
                 task_conf = {}
 
             # record storge
-            task_conf["storage"] = {"items": task_conf.pop("persist", {}), **push_conf}
+            task_conf["storage"] = {
+                "items": task_conf.pop(
+                    "persist", {}), **push_conf}
 
             scripts[path] = task_conf
         params["scripts"] = scripts
@@ -248,18 +258,21 @@ def load_configs(
 
             targets = group.get("targets", {})
             if not targets or not isinstance(targets, dict):
-                logger.error(f"group {name} should contain at least one type conversion")
+                logger.error(
+                    f"group {name} should contain at least one type conversion")
                 return False
 
             for category, storage_name in targets.items():
                 category = utils.trim(category).lower()
                 if category not in subconverter.CONVERT_TARGETS:
-                    logger.error(f"group {name} contains unsupported conversion type: {category}")
+                    logger.error(
+                        f"group {name} contains unsupported conversion type: {category}")
                     return False
 
                 storage_name = utils.trim(storage_name)
                 if storage_name not in items:
-                    logger.error(f"missing storage configuration for group {name} to convert type to {category}")
+                    logger.error(
+                        f"missing storage configuration for group {name} to convert type to {category}")
                     return False
 
         return True
@@ -275,32 +288,44 @@ def load_configs(
             headers = {"User-Agent": utils.USER_AGENT, "Referer": url}
             content = utils.http_get(url=url, headers=headers)
             if not content:
-                logger.error(f"cannot fetch config from remote, url: {utils.hide(url=url)}")
+                logger.error(
+                    f"cannot fetch config from remote, url: {
+                        utils.hide(
+                            url=url)}")
             else:
                 os.environ["SUBSCRIBE_CONF"] = url
                 parse_config(json.loads(content))
         else:
             localfile = os.path.abspath(url)
             if os.path.exists(localfile) and os.path.isfile(localfile):
-                config = json.loads(open(localfile, "r", encoding="utf8").read())
+                config = json.loads(
+                    open(
+                        localfile,
+                        "r",
+                        encoding="utf8").read())
                 os.environ["SUBSCRIBE_CONF"] = localfile
                 parse_config(config)
 
         # check configuration
         if not verify(storage=storage, groups=groups):
-            raise ValueError(f"there are some errors in the configuration, please check and confirm")
+            raise ValueError(
+                f"there are some errors in the configuration, please check and confirm")
 
         # execute crawl tasks
         if params:
-            result = crawl.batch_crawl(conf=params, num_threads=num_threads, display=display)
+            result = crawl.batch_crawl(
+                conf=params, num_threads=num_threads, display=display)
             tasks.extend(result)
     except SystemExit as e:
         if e.code != 0:
-            logger.error("parse configuration failed due to process abnormally exits")
+            logger.error(
+                "parse configuration failed due to process abnormally exits")
 
         sys.exit(e.code)
-    except:
-        logger.error(f"occur error when load task config:\n{traceback.format_exc()}")
+    except BaseException:
+        logger.error(
+            f"occur error when load task config:\n{
+                traceback.format_exc()}")
         sys.exit(0)
 
     return ProcessConfig(
@@ -414,7 +439,8 @@ def assign(
         # 如果renew不为空，num为配置的renew账号数
         num = len(accounts) if accounts else num
 
-        if not site.get("enable", True) or "" == name or ("" == domain and not subscribe) or num <= 0:
+        if not site.get("enable", True) or "" == name or (
+                "" == domain and not subscribe) or num <= 0:
             continue
 
         for i in range(num):
@@ -461,7 +487,8 @@ def assign(
             tasks.append(task)
             for push_name in push_names:
                 if push_name not in pc.groups:
-                    logger.error(f"cannot found push config, name=[{push_name}]\tsite=[{name}]")
+                    logger.error(
+                        f"cannot found push config, name=[{push_name}]\tsite=[{name}]")
                     continue
 
                 taskids = groups.get(push_name, [])
@@ -511,7 +538,10 @@ def aggregate(args: argparse.Namespace) -> None:
     display = not args.invisible
 
     # parse config
-    server = utils.trim(args.server) or os.environ.get("SUBSCRIBE_CONF", "").strip()
+    server = utils.trim(
+        args.server) or os.environ.get(
+        "SUBSCRIBE_CONF",
+        "").strip()
     process_config = load_configs(
         url=server,
         only_check=args.check,
@@ -543,7 +573,8 @@ def aggregate(args: argparse.Namespace) -> None:
         os.remove(generate_conf)
 
     logger.info(f"start fetch all subscriptions, count: [{len(tasks)}]")
-    results = utils.multi_process_run(func=workflow.executewrapper, tasks=tasks)
+    results = utils.multi_process_run(
+        func=workflow.executewrapper, tasks=tasks)
 
     subscribes, datasets = {}, {}
     for i in range(len(results)):
@@ -564,7 +595,8 @@ def aggregate(args: argparse.Namespace) -> None:
         arrays = [datasets.get(x, []) for x in v]
         proxies = list(itertools.chain.from_iterable(arrays))
         if len(proxies) == 0:
-            logger.error(f"exit because cannot fetch any proxy node, group=[{k}]")
+            logger.error(
+                f"exit because cannot fetch any proxy node, group=[{k}]")
             continue
 
         workspace = os.path.join(PATH, "clash")
@@ -573,7 +605,12 @@ def aggregate(args: argparse.Namespace) -> None:
         proxies = clash.generate_config(workspace, proxies, filename)
 
         # filer
-        skip = utils.trim(os.environ.get("SKIP_ALIVE_CHECK", "false")).lower() in ["true", "1"]
+        skip = utils.trim(
+            os.environ.get(
+                "SKIP_ALIVE_CHECK",
+                "false")).lower() in [
+            "true",
+            "1"]
         nochecks, starttime = proxies, time.time()
 
         if not skip:
@@ -582,7 +619,8 @@ def aggregate(args: argparse.Namespace) -> None:
                 # executable
                 utils.chmod(binpath)
 
-                logger.info(f"startup clash now, workspace: {workspace}, config: {filename}")
+                logger.info(
+                    f"startup clash now, workspace: {workspace}, config: {filename}")
                 process = subprocess.Popen(
                     [
                         binpath,
@@ -593,7 +631,9 @@ def aggregate(args: argparse.Namespace) -> None:
                     ]
                 )
 
-                logger.info(f"clash start success, begin check proxies, group: {k}\tcount: {len(checks)}")
+                logger.info(
+                    f"clash start success, begin check proxies, group: {k}\tcount: {
+                        len(checks)}")
                 time.sleep(random.randint(5, 8))
 
                 params = [
@@ -613,20 +653,26 @@ def aggregate(args: argparse.Namespace) -> None:
                 # close clash client
                 try:
                     process.terminate()
-                except:
+                except BaseException:
                     logger.error(f"terminate clash process error, group: {k}")
 
-                availables = [checks[i] for i in range(len(checks)) if masks[i]]
+                availables = [checks[i]
+                              for i in range(len(checks)) if masks[i]]
                 nochecks.extend(availables)
 
                 dead = len(checks) - len(availables)
-                logger.info(f"proxies check finished, total: {len(checks)}, alive: {len(availables)}, dead: {dead}")
+                logger.info(
+                    f"proxies check finished, total: {
+                        len(checks)}, alive: {
+                        len(availables)}, dead: {dead}")
 
         for item in nochecks:
             item.pop("sub", "")
 
         if len(nochecks) <= 0:
-            logger.error(f"cannot fetch any proxy, group=[{k}], cost: {time.time()-starttime:.2f}s")
+            logger.error(
+                f"cannot fetch any proxy, group=[{k}], cost: {
+                    time.time() - starttime:.2f}s")
             continue
 
         group_conf = process_config.groups.get(k, {})
@@ -634,12 +680,16 @@ def aggregate(args: argparse.Namespace) -> None:
         list_only = group_conf.get("list", True)
 
         regularize = group_conf.get("regularize", {})
-        if regularize and isinstance(regularize, dict) and regularize.get("enable", False):
+        if regularize and isinstance(
+                regularize,
+                dict) and regularize.get(
+                "enable",
+                False):
             locate = regularize.get("locate", False)
             residential = regularize.get("residential", False)
             try:
                 bits = max(1, int(regularize.get("bits", 2)))
-            except:
+            except BaseException:
                 bits = 2
 
             nochecks = location.regularize(
@@ -678,14 +728,19 @@ def aggregate(args: argparse.Namespace) -> None:
                 list_only=list_only,
             )
             if not success:
-                logger.error(f"cannot generate subconverter config file, group: {k}, target: {target}")
+                logger.error(
+                    f"cannot generate subconverter config file, group: {k}, target: {target}")
                 continue
 
-            if subconverter.convert(binname=subconverter_bin, artifact=artifact):
+            if subconverter.convert(
+                    binname=subconverter_bin,
+                    artifact=artifact):
                 filepath = os.path.join(PATH, "subconverter", dest_file)
 
-                if not os.path.exists(filepath) or not os.path.isfile(filepath):
-                    logger.error(f"converted file {filepath} not found, group: {k}, target: {target}")
+                if not os.path.exists(
+                        filepath) or not os.path.isfile(filepath):
+                    logger.error(
+                        f"converted file {filepath} not found, group: {k}, target: {target}")
                     continue
 
                 with open(filepath, "r", encoding="utf8") as f:
@@ -695,30 +750,40 @@ def aggregate(args: argparse.Namespace) -> None:
                 if mixed and not utils.isb64encode(content=content):
                     # base64 encode
                     try:
-                        content = base64.b64encode(content.encode(encoding="UTF8")).decode(encoding="UTF8")
+                        content = base64.b64encode(
+                            content.encode(
+                                encoding="UTF8")).decode(
+                            encoding="UTF8")
                     except Exception as e:
-                        logger.error(f"base64 encode error, group: {k}, target: {target}, message: {str(e)}")
+                        logger.error(
+                            f"base64 encode error, group: {k}, target: {target}, message: {
+                                str(e)}")
                         continue
 
                 # save to remote server
                 persisted = pushtool.push_to(
-                    content=content,
-                    config=process_config.storage.get("items", {}).get(storage_name, {}),
-                    group=f"{k}::{target}",
-                )
+                    content=content, config=process_config.storage.get(
+                        "items", {}).get(
+                        storage_name, {}), group=f"{k}::{target}", )
 
             # clean workspace
-            workflow.cleanup(os.path.join(PATH, "subconverter"), [dest_file, "generate.ini"])
+            workflow.cleanup(
+                os.path.join(
+                    PATH, "subconverter"), [
+                    dest_file, "generate.ini"])
 
             if content and not persisted:
                 filename = os.path.join(PATH, "data", f"{k}-{dest_file}")
 
-                logger.error(f"storage config to remote failed, group: {k}, target: {target}, save it to {filename}")
+                logger.error(
+                    f"storage config to remote failed, group: {k}, target: {target}, save it to {filename}")
                 utils.write_file(filename=filename, lines=content)
 
         workflow.cleanup(os.path.join(PATH, "subconverter"), [source_file])
         cost = "{:.2f}s".format(time.time() - starttime)
-        logger.info(f"group [{k}] process finished, count: {len(nochecks)}, cost: {cost}")
+        logger.info(
+            f"group [{k}] process finished, count: {
+                len(nochecks)}, cost: {cost}")
 
     config = {
         "domains": sites,
@@ -727,9 +792,18 @@ def aggregate(args: argparse.Namespace) -> None:
         "storage": process_config.storage,
         "update": process_config.update,
     }
-    skip_remark = utils.trim(os.environ.get("SKIP_REMARK", "false")).lower() in ["true", "1"]
+    skip_remark = utils.trim(
+        os.environ.get(
+            "SKIP_REMARK",
+            "false")).lower() in [
+        "true",
+        "1"]
 
-    workflow.refresh(config=config, push=pushtool, alives=dict(subscribes), skip_remark=skip_remark)
+    workflow.refresh(
+        config=config,
+        push=pushtool,
+        alives=dict(subscribes),
+        skip_remark=skip_remark)
 
 
 if __name__ == "__main__":

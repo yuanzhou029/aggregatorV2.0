@@ -187,8 +187,8 @@ class AirPort:
             "Origin": self.ref,
             "Host": utils.extract_domain(self.ref),
         }
-        self.username = ""
-        self.password = ""
+        self.username = None
+        self.password = None
         self.available = True
 
     @staticmethod
@@ -213,8 +213,12 @@ class AirPort:
         if not content and (not api_prefix or subpath != ANOTHER_API_PREFIX):
             api_prefix = ANOTHER_API_PREFIX
 
-            logger.debug(f"[QueryError] try to explore another register require, domain: {domain}")
-            content = utils.http_get(url=f"{domain}{api_prefix}guest/comm/config", retry=2, proxy=proxy)
+            logger.debug(
+                f"[QueryError] try to explore another register require, domain: {domain}"
+            )
+            content = utils.http_get(
+                url=f"{domain}{api_prefix}guest/comm/config", retry=2, proxy=proxy
+            )
 
         if not content.startswith("{") and content.endswith("}"):
             logger.debug(f"[QueryError] cannot get register require, domain: {domain}")
@@ -243,7 +247,7 @@ class AirPort:
                 api_prefix=api_prefix,
             )
 
-        except:
+        except BaseException:
             return RegisterRequire(verify=default, invite=default, recaptcha=default)
 
     def sen_email_verify(self, email: str, retry: int = 3) -> bool:
@@ -260,17 +264,24 @@ class AirPort:
             data = json.dumps(params).encode(encoding="UTF8")
 
         try:
-            request = urllib.request.Request(self.send_email, data=data, headers=headers, method="POST")
+            request = urllib.request.Request(
+                self.send_email, data=data, headers=headers, method="POST"
+            )
             response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
             if not response or response.getcode() != 200:
                 return False
 
             return json.loads(response.read()).get("data", False)
-        except:
+        except BaseException:
             return self.sen_email_verify(email=email, retry=retry - 1)
 
     def register(
-        self, email: str, password: str, email_code: str = None, invite_code: str = None, retry: int = 3
+        self,
+        email: str,
+        password: str,
+        email_code: str = None,
+        invite_code: str = None,
+        retry: int = 3,
     ) -> tuple[str, str]:
         if retry <= 0:
             logger.info(f"achieved max retry when register, domain: {self.ref}")
@@ -295,11 +306,17 @@ class AirPort:
             data = json.dumps(params).encode(encoding="UTF8")
 
         try:
-            request = urllib.request.Request(self.reg, data=data, headers=headers, method="POST")
+            request = urllib.request.Request(
+                self.reg, data=data, headers=headers, method="POST"
+            )
             response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
             code = 400 if not response else response.getcode()
             if code != 200:
-                logger.error(f"[RegisterError] request error when register, domain: {self.ref}, code={code}")
+                logger.error(
+                    f"[RegisterError] request error when register, domain: {
+                        self.ref
+                    }, code={code}"
+                )
                 return "", ""
 
             self.username = email
@@ -332,10 +349,14 @@ class AirPort:
                 if token:
                     self.sub = f"{self.ref}/api/v1/client/subscribe?token={token}"
                 else:
-                    logger.error(f"[RegisterError] cannot get token when register, domain: {self.ref}")
+                    logger.error(
+                        f"[RegisterError] cannot get token when register, domain: {
+                            self.ref
+                        }"
+                    )
 
             return cookies, authorization
-        except:
+        except BaseException:
             return self.register(email, password, email_code, invite_code, retry - 1)
 
     def order_plan(
@@ -416,11 +437,16 @@ class AirPort:
                     proxies.append(item.get("name"))
 
             return proxies
-        except:
+        except BaseException:
             return []
 
     def get_subscribe(
-        self, retry: int, rr: RegisterRequire = None, rigid: bool = True, chuck: bool = False, invite_code: str = None
+        self,
+        retry: int,
+        rr: RegisterRequire = None,
+        rigid: bool = True,
+        chuck: bool = False,
+        invite_code: str = None,
     ) -> tuple[str, str]:
         if self.registed:
             return "", ""
@@ -440,7 +466,11 @@ class AirPort:
         if (
             (rr.invite and not invite_code)
             or (chuck and rr.recaptcha)
-            or (rr.whitelist and rr.verify and (rigid or "gmail.com" not in rr.whitelist))
+            or (
+                rr.whitelist
+                and rr.verify
+                and (rigid or "gmail.com" not in rr.whitelist)
+            )
         ):
             self.available = False
             return "", ""
@@ -450,7 +480,9 @@ class AirPort:
 
         if not rr.verify:
             email = utils.random_chars(length=random.randint(6, 10), punctuation=False)
-            password = utils.random_chars(length=random.randint(8, 16), punctuation=True)
+            password = utils.random_chars(
+                length=random.randint(8, 16), punctuation=True
+            )
 
             email_suffixs = rr.whitelist if rr.whitelist else EMAILS_DOMAINS
             email_domain = random.choice(email_suffixs)
@@ -458,7 +490,9 @@ class AirPort:
                 return "", ""
 
             email = f"{email}@{email_domain}"
-            return self.register(email=email, password=password, invite_code=invite_code, retry=retry)
+            return self.register(
+                email=email, password=password, invite_code=invite_code, retry=retry
+            )
         else:
             only_gmail = True if rr.whitelist and rr.verify else False
 
@@ -466,35 +500,47 @@ class AirPort:
                 mailbox = mailtm.create_instance(only_gmail=only_gmail)
                 account = mailbox.get_account()
                 if not account:
-                    logger.error(f"cannot create temporary email account, site: {self.ref}")
+                    logger.error(
+                        f"cannot create temporary email account, site: {self.ref}"
+                    )
                     return "", ""
 
                 message = None
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                     starttime = time.time()
                     try:
-                        future = executor.submit(mailbox.monitor_account, account, 120, random.randint(1, 3))
+                        future = executor.submit(
+                            mailbox.monitor_account, account, 120, random.randint(1, 3)
+                        )
                         success = self.sen_email_verify(email=account.address, retry=3)
                         if not success:
                             executor.shutdown(wait=False)
                             return "", ""
                         message = future.result(timeout=120)
                         logger.debug(
-                            f"email has been received, domain: {self.ref}\tcost: {int(time.time()- starttime)}s"
+                            f"email has been received, domain: {self.ref}\tcost: {
+                                int(time.time() - starttime)
+                            }s"
                         )
                     except concurrent.futures.TimeoutError:
                         logger.error(
-                            f"receiving mail timeout, site: {self.ref}, address: {mailbox.api_address}, email: {account.address}"
+                            f"receiving mail timeout, site: {self.ref}, address: {
+                                mailbox.api_address
+                            }, email: {account.address}"
                         )
 
                 if not message:
                     return "", ""
 
                 # 如果标准正则无法提取验证码则直接匹配数字
-                mask = mailbox.extract_mask(message.text) or mailbox.extract_mask(message.text, r"[：\s]+([0-9]{6})")
+                mask = mailbox.extract_mask(message.text) or mailbox.extract_mask(
+                    message.text, r"[：\s]+([0-9]{6})"
+                )
                 mailbox.delete_account(account=account)
                 if not mask:
-                    logger.error(f"cannot fetch mask, url: {self.ref}, message: {message.text}")
+                    logger.error(
+                        f"cannot fetch mask, url: {self.ref}, message: {message.text}"
+                    )
                     return "", ""
 
                 return self.register(
@@ -504,7 +550,7 @@ class AirPort:
                     invite_code=invite_code,
                     retry=retry,
                 )
-            except:
+            except BaseException:
                 return "", ""
 
     def parse(
@@ -521,7 +567,11 @@ class AirPort:
         special_protocols: bool = False,
     ) -> list:
         if "" == self.sub:
-            logger.error(f"[ParseError] cannot found any proxies because subscribe url is empty, domain: {self.ref}")
+            logger.error(
+                f"[ParseError] cannot found any proxies because subscribe url is empty, domain: {
+                    self.ref
+                }"
+            )
             return []
 
         if self.sub.startswith(utils.FILEPATH_PROTOCAL):
@@ -547,12 +597,18 @@ class AirPort:
             ).strip()
 
         if "" == text or (
-            text.startswith("{") and text.endswith("}") and not re.search(r'"outbounds":', text, flags=re.I)
+            text.startswith("{")
+            and text.endswith("}")
+            and not re.search(r'"outbounds":', text, flags=re.I)
         ):
-            logger.error(f"[ParseError] cannot found any proxies, subscribe: {utils.mask(url=self.sub)}")
+            logger.error(
+                f"[ParseError] cannot found any proxies, subscribe: {
+                    utils.mask(url=self.sub)
+                }"
+            )
             return []
 
-        chatgpt = chatgpt if chatgpt and type(chatgpt) == dict else None
+        chatgpt = chatgpt if chatgpt and isinstance(chatgpt, dict) else None
         enable, operate, pattern = False, "IN", ""
         if chatgpt:
             enable = chatgpt.get("enable", False)
@@ -595,9 +651,11 @@ class AirPort:
                     else:
                         if self.exclude and re.search(self.exclude, name, re.I):
                             continue
-                except:
+                except BaseException:
                     logger.error(
-                        f"filter proxies error, maybe include or exclude regex exists problems, include: {self.include}\texclude: {self.exclude}"
+                        f"filter proxies error, maybe include or exclude regex exists problems, include: {
+                            self.include
+                        }\texclude: {self.exclude}"
                     )
 
                 try:
@@ -608,7 +666,8 @@ class AirPort:
                             if not rename_regex:
                                 continue
 
-                            # re对group的引用方法: https://stackoverflow.com/questions/7191209/re-sub-replace-with-matched-content
+                            # re对group的引用方法:
+                            # https://stackoverflow.com/questions/7191209/re-sub-replace-with-matched-content
                             if RENAME_SEPARATOR in rename_regex:
                                 words = rename_regex.split(RENAME_SEPARATOR, maxsplit=1)
                                 old = words[0].strip()
@@ -620,7 +679,10 @@ class AirPort:
 
                     # 标记需要进行ChatGPT连通性测试的节点
                     flag, detect = (
-                        enable or re.search(f"{utils.CHATGPT_FLAG}|(Chat)?GPT", name, flags=re.I),
+                        enable
+                        or re.search(
+                            f"{utils.CHATGPT_FLAG}|(Chat)?GPT", name, flags=re.I
+                        ),
                         True,
                     )
                     if flag and pattern:
@@ -639,9 +701,13 @@ class AirPort:
                     # 重命名带网址的节点
                     regex = r"(?:https?://)?(?:[a-zA-Z0-9\u4e00-\u9fa5\-]+\.)+[a-zA-Z\u4e00-\u9fa5]{2,}"
                     name = re.sub(regex, "", name, flags=re.I)
-                except:
+                except BaseException:
                     logger.error(
-                        f"rename error, name: {name},\trename: {self.rename}\tseparator: {RENAME_SEPARATOR}\tchatgpt: {pattern}\tdomain: {self.ref}"
+                        f"rename error, name: {name},\trename: {
+                            self.rename
+                        }\tseparator: {RENAME_SEPARATOR}\tchatgpt: {pattern}\tdomain: {
+                            self.ref
+                        }"
                     )
 
                 name = re.sub(
@@ -684,15 +750,24 @@ class AirPort:
                     if "tls" in item:
                         item["tls"] = True
 
-                if udp and "udp" not in item and (item.get("type", "") != "snell" or int(item.get("version", 1)) == 3):
+                if (
+                    udp
+                    and "udp" not in item
+                    and (
+                        item.get("type", "") != "snell"
+                        or int(item.get("version", 1)) == 3
+                    )
+                ):
                     item["udp"] = True
 
                 proxies.append(item)
 
             return proxies
-        except:
+        except BaseException:
             logger.error(
-                f"[ParseError] occur error when parse data, domain: {self.ref}, message:\n{traceback.format_exc()}"
+                f"[ParseError] occur error when parse data, domain: {
+                    self.ref
+                }, message:\n{traceback.format_exc()}"
             )
             return []
 
@@ -719,14 +794,24 @@ class AirPort:
             if not document:
                 return ""
 
-            url_decode = lambda m: (
-                f'"name": "{urllib.parse.unquote(m.group(1))}",'
-                if m and m.group(1)
-                else f'"name": "{utils.random_chars(6)}",'
-            )
-            document = re.sub(r'"name":(?:\s+)?"(%.*)",', url_decode, document, flags=re.I)
+            def url_decode(m):
+                return (
+                    f'"name": "{urllib.parse.unquote(m.group(1))}",'
+                    if m and m.group(1)
+                    else f'"name": "{utils.random_chars(6)}",'
+                )
 
-            add_quote = lambda m: f"- '{m.group(1)}'" if m and m.group(1) else f"- '{utils.random_chars(6)}'"
+            document = re.sub(
+                r'"name":(?:\s+)?"(%.*)",', url_decode, document, flags=re.I
+            )
+
+            def add_quote(m):
+                return (
+                    f"- '{m.group(1)}'"
+                    if m and m.group(1)
+                    else f"- '{utils.random_chars(6)}'"
+                )
+
             document = re.sub(r'-\s+("?%.*"?)', add_quote, document, flags=re.I)
 
             return document
@@ -740,7 +825,12 @@ class AirPort:
             use_subconverter
             or (is_b64encode := utils.isb64encode(text))
             or (is_json := (text.startswith("{") and text.endswith("}")))
-            or not (is_yaml := (re.search(r"^proxies:([\s\r\n]+)?$", text, flags=re.MULTILINE) is not None))
+            or not (
+                is_yaml := (
+                    re.search(r"^proxies:([\s\r\n]+)?$", text, flags=re.MULTILINE)
+                    is not None
+                )
+            )
         ):
             artifact = utils.trim(text=artifact)
             if not artifact:
@@ -756,13 +846,15 @@ class AirPort:
                 and not is_yaml
                 and all(AirPort.check_protocol(x) for x in text.split("\n") if x)
             ):
-                text = base64.b64encode(text.encode(encoding="UTF8")).decode(encoding="UTF8")
+                text = base64.b64encode(text.encode(encoding="UTF8")).decode(
+                    encoding="UTF8"
+                )
 
             try:
                 with open(v2ray_file, "w+", encoding="UTF8") as f:
                     f.write(text)
                     f.flush()
-            except:
+            except BaseException:
                 if os.path.exists(v2ray_file):
                     os.remove(v2ray_file)
 
@@ -786,7 +878,9 @@ class AirPort:
 
             time.sleep(random.random())
             success = subconverter.convert(binname=program, artifact=artifact)
-            logger.info(f"subconverter completed, artifact: [{artifact}]\tsuccess=[{success}]")
+            logger.info(
+                f"subconverter completed, artifact: [{artifact}]\tsuccess=[{success}]"
+            )
 
             os.remove(v2ray_file)
             if not success:
@@ -808,7 +902,11 @@ class AirPort:
                     if throw:
                         raise e
                     else:
-                        logger.error(f"cannot load yaml file, artifact: {artifact}, message:\n{traceback.format_exc()}")
+                        logger.error(
+                            f"cannot load yaml file, artifact: {artifact}, message:\n{
+                                traceback.format_exc()
+                            }"
+                        )
 
                 nodes = [] if not config else config.get("proxies", [])
 
@@ -822,13 +920,21 @@ class AirPort:
                 text = clean_text(document=text)
                 nodes = yaml.load(text, Loader=yaml.SafeLoader).get("proxies", [])
             except (yaml.constructor.ConstructorError, yaml.parser.ParserError):
-                yaml.add_multi_constructor("str", lambda loader, suffix, node: str(node.value), Loader=yaml.SafeLoader)
+                yaml.add_multi_constructor(
+                    "str",
+                    lambda loader, suffix, node: str(node.value),
+                    Loader=yaml.SafeLoader,
+                )
                 nodes = yaml.load(text, Loader=yaml.FullLoader).get("proxies", [])
             except Exception as e:
                 if throw:
                     raise e
                 else:
-                    logger.error(f"cannot load yaml file, artifact: {artifact}, message:\n{traceback.format_exc()}")
+                    logger.error(
+                        f"cannot load yaml file, artifact: {artifact}, message:\n{
+                            traceback.format_exc()
+                        }"
+                    )
 
         return [] if not nodes else [x for x in nodes if verify(x, special)]
 

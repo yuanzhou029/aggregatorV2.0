@@ -45,6 +45,7 @@ COPY plugin_manager /aggregator/plugin_manager
 
 # install dependencies
 RUN pip install -i ${PIP_INDEX_URL} --no-cache-dir -r requirements.txt
+RUN pip install -i ${PIP_INDEX_URL} --no-cache-dir jsonschema
 
 # install Node.js and npm
 RUN apt-get update && apt-get install -y curl python3-dev gcc && \

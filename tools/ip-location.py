@@ -17,13 +17,16 @@ DATA_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 def trim(text: str) -> str:
-    if not text or type(text) != str:
+    if not text or not isinstance(text, str):
         return ""
 
     return text.strip()
 
 
-def extract_reverse_ips(base: str, update: bool = False, retry: int = 3) -> list[str]:
+def extract_reverse_ips(
+        base: str,
+        update: bool = False,
+        retry: int = 3) -> list[str]:
     base, directoy = trim(base), "output"
     if not base:
         raise ValueError("invalid directory name")
@@ -33,7 +36,8 @@ def extract_reverse_ips(base: str, update: bool = False, retry: int = 3) -> list
     # read from merged file if exists
     if not update and os.path.exists(last) and os.path.isfile(last):
         with open(last, "r", encoding="UTF8") as f:
-            return [trim(line.replace("\n", "")) for line in f.readlines() if line]
+            return [trim(line.replace("\n", ""))
+                    for line in f.readlines() if line]
 
     fullpath = os.path.join(base, directoy)
     if os.path.exists(fullpath) and os.path.isdir(fullpath):
@@ -119,7 +123,12 @@ def download_mmdb(target: str, filepath: str, retry: int = 3):
     download(download_url, filepath, target, retry, 60)
 
 
-def download(url: str, filepath: str, filename: str, retry: int = 3, timeout: int = 10) -> None:
+def download(
+        url: str,
+        filepath: str,
+        filename: str,
+        retry: int = 3,
+        timeout: int = 10) -> None:
     """Download file from url to filepath with filename"""
 
     if retry < 0:
@@ -154,7 +163,8 @@ def download(url: str, filepath: str, filename: str, retry: int = 3, timeout: in
                     f.write(chunk)
                     f.flush()
     except Exception:
-        return download(url, filepath, filename, retry - 1, min(timeout * 2, 180))
+        return download(url, filepath, filename,
+                        retry - 1, min(timeout * 2, 180))
 
     print(f"download file {filename} to {fullpath} success")
 
@@ -194,12 +204,14 @@ def main(args: argparse.Namespace) -> None:
                 continue
 
             country = response.country.names.get("zh-CN", "")
-            subdivision = response.subdivisions.most_specific.names.get("zh-CN", "")
+            subdivision = response.subdivisions.most_specific.names.get(
+                "zh-CN", "")
             city = response.city.names.get("zh-CN", "")
             register = response.registered_country.names.get("zh-CN", "")
 
             # append to dataframe
-            df.loc[len(df)] = [ip, country, subdivision, city, register, "", ""]
+            df.loc[len(df)] = [ip, country, subdivision,
+                               city, register, "", ""]
     except Exception as e:
         raise e
     finally:

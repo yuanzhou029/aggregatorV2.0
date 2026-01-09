@@ -23,7 +23,11 @@ from origin import Origin
 from urlvalidator import isurl
 
 
-def search(exclude: str = "", maxsize: int = sys.maxsize, timesleep: float = 3, timeout: float = 180) -> list[str]:
+def search(
+        exclude: str = "",
+        maxsize: int = sys.maxsize,
+        timesleep: float = 3,
+        timeout: float = 180) -> list[str]:
     try:
         from fofa_hack import fofa as client
     except ImportError:
@@ -52,9 +56,11 @@ def search(exclude: str = "", maxsize: int = sys.maxsize, timesleep: float = 3, 
         for site in data:
             url = utils.trim(site)
             try:
-                if url and (not exclude or not re.search(exclude, url, flags=re.I)):
+                if url and (
+                    not exclude or not re.search(
+                        exclude, url, flags=re.I)):
                     items.add(url)
-            except:
+            except BaseException:
                 logger.error(f"[FOFA] invalid pattern: {exclude}")
 
     return list(items)
@@ -75,8 +81,10 @@ def extract_one(url: str) -> list[str]:
         count += 1
 
         try:
-            request = urllib.request.Request(url=url, headers=headers, method="GET")
-            response = urllib.request.urlopen(request, timeout=10, context=utils.CTX)
+            request = urllib.request.Request(
+                url=url, headers=headers, method="GET")
+            response = urllib.request.urlopen(
+                request, timeout=10, context=utils.CTX)
 
             if re.search(regex, response.geturl(), flags=re.I):
                 subscriptions.append(response.geturl())
@@ -84,10 +92,14 @@ def extract_one(url: str) -> list[str]:
             content = response.read()
             try:
                 content = str(content, encoding="utf8")
-            except:
+            except BaseException:
                 content = gzip.decompress(content).decode("utf8")
         except urllib.error.URLError as e:
-            if not isinstance(e.reason, (socket.gaierror, ssl.SSLError, socket.timeout)):
+            if not isinstance(
+                e.reason,
+                (socket.gaierror,
+                 ssl.SSLError,
+                 socket.timeout)):
                 break
         except Exception as e:
             pass
@@ -95,25 +107,33 @@ def extract_one(url: str) -> list[str]:
     if content:
         groups = re.findall(regex, content, flags=re.I)
         if groups:
-            subscriptions.extend(list(set([utils.url_complete(x) for x in groups if x])))
+            subscriptions.extend(
+                list(set([utils.url_complete(x) for x in groups if x])))
 
         # extract from proxy-providers
         providers, key = None, "proxy-providers"
         try:
             providers = yaml.load(content, Loader=yaml.SafeLoader).get(key, [])
         except (yaml.constructor.ConstructorError, yaml.parser.ParserError):
-            yaml.add_multi_constructor("str", lambda loader, suffix, node: str(node.value), Loader=yaml.SafeLoader)
+            yaml.add_multi_constructor(
+                "str", lambda loader, suffix, node: str(
+                    node.value), Loader=yaml.SafeLoader)
             providers = yaml.load(content, Loader=yaml.FullLoader).get(key, [])
         except Exception as e:
             pass
 
         if providers and isinstance(providers, dict):
             for _, v in providers.items():
-                if not v or not isinstance(v, dict) or v.get("type", "") != "http":
+                if not v or not isinstance(
+                        v,
+                        dict) or v.get(
+                        "type",
+                        "") != "http":
                     continue
 
                 link = utils.trim(v.get("url", ""))
-                if link and (link.startswith("https://") or link.startswith("http://")):
+                if link and (link.startswith("https://")
+                             or link.startswith("http://")):
                     subscriptions.append(link)
 
     return subscriptions
@@ -133,7 +153,7 @@ def recall(params: dict) -> list:
 
         return config
 
-    if not params or type(params) != dict:
+    if not params or not isinstance(params, dict):
         return []
 
     exclude = params.get("exclude", "")
@@ -143,9 +163,15 @@ def recall(params: dict) -> list:
     timeout = float(params.get("timeout", 180))
 
     starttime = time.time()
-    links = search(exclude=exclude, maxsize=maxsize, timesleep=timesleep, timeout=timeout)
+    links = search(
+        exclude=exclude,
+        maxsize=maxsize,
+        timesleep=timesleep,
+        timeout=timeout)
     if not links:
-        logger.error(f"[FOFA] cannot found any valid public subscription, cost: {time.time()-starttime:.2f}s")
+        logger.error(
+            f"[FOFA] cannot found any valid public subscription, cost: {
+                time.time() - starttime:.2f}s")
         return []
 
     tasks = list()
@@ -153,17 +179,25 @@ def recall(params: dict) -> list:
         tasks.append(inwrap(sub=link, nocache=True, pardon=False))
 
     if check:
-        logger.info(f"[FOFA] start to extract subscription from links, count: {len(links)}")
+        logger.info(
+            f"[FOFA] start to extract subscription from links, count: {
+                len(links)}")
 
         results = utils.multi_thread_run(func=extract_one, tasks=links)
-        subscriptions = [x for x in set(itertools.chain.from_iterable(results)) if x]
+        subscriptions = [
+            x for x in set(
+                itertools.chain.from_iterable(results)) if x]
 
         for link in subscriptions:
             tasks.append(inwrap(sub=link, nocache=False, pardon=True))
 
-        logger.info(f"[FoFA] found {len(subscriptions)} subscriptions: {subscriptions}")
+        logger.info(
+            f"[FoFA] found {
+                len(subscriptions)} subscriptions: {subscriptions}")
 
     cost = "{:.2f}s".format(time.time() - starttime)
-    logger.info(f"[FOFA] search finished, found {len(tasks)} candidates to be check, cost: {cost}")
+    logger.info(
+        f"[FOFA] search finished, found {
+            len(tasks)} candidates to be check, cost: {cost}")
 
     return tasks

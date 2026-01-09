@@ -42,7 +42,11 @@ def assign(
     num_threads: int = 0,
     **kwargs,
 ) -> list[TaskConfig]:
-    def load_exist(username: str, gist_id: str, access_token: str, filename: str) -> list[str]:
+    def load_exist(
+            username: str,
+            gist_id: str,
+            access_token: str,
+            filename: str) -> list[str]:
         if not filename:
             return []
 
@@ -58,14 +62,19 @@ def assign(
 
         if username and gist_id and access_token:
             push_tool = push.PushToGist(token=access_token)
-            url = push_tool.raw_url(config={"username": username, "gistid": gist_id, "filename": filename})
+            url = push_tool.raw_url(
+                config={
+                    "username": username,
+                    "gistid": gist_id,
+                    "filename": filename})
 
             content = utils.http_get(url=url, timeout=30)
             items = re.findall(pattern, content, flags=re.M)
             if items:
                 subscriptions.update(items)
 
-        logger.info("start checking whether existing subscriptions have expired")
+        logger.info(
+            "start checking whether existing subscriptions have expired")
 
         # 过滤已过期订阅并返回
         links = list(subscriptions)
@@ -76,11 +85,13 @@ def assign(
             show_progress=display,
         )
 
-        return [links[i] for i in range(len(links)) if results[i][0] and not results[i][1]]
+        return [links[i]
+                for i in range(len(links)) if results[i][0] and not results[i][1]]
 
     def parse_domains(content: str) -> dict:
         if not content or not isinstance(content, str):
-            logger.warning("cannot found any domain due to content is empty or not string")
+            logger.warning(
+                "cannot found any domain due to content is empty or not string")
             return {}
 
         records = {}
@@ -95,7 +106,10 @@ def assign(
             invite_code = utils.trim(words[2]) if len(words) > 2 else ""
             api_prefix = utils.trim(words[3]) if len(words) > 3 else ""
 
-            records[address] = {"coupon": coupon, "invite_code": invite_code, "api_prefix": api_prefix}
+            records[address] = {
+                "coupon": coupon,
+                "invite_code": invite_code,
+                "api_prefix": api_prefix}
 
         return records
 
@@ -106,25 +120,25 @@ def assign(
     chuck = kwargs.get("chuck", False)
 
     # 加载已有订阅
-    subscriptions = load_exist(username, gist_id, access_token, subscribes_file)
-    logger.info(f"load exists subscription finished, count: {len(subscriptions)}")
+    subscriptions = load_exist(
+        username,
+        gist_id,
+        access_token,
+        subscribes_file)
+    logger.info(
+        f"load exists subscription finished, count: {
+            len(subscriptions)}")
 
     # 是否允许特殊协议
     special_protocols = AirPort.enable_special_protocols()
 
-    tasks = (
-        [
-            TaskConfig(name=utils.random_chars(length=8), sub=x, bin_name=bin_name, special_protocols=special_protocols)
-            for x in subscriptions
-            if x
-        ]
-        if subscriptions
-        else []
-    )
+    tasks = ([TaskConfig(name=utils.random_chars(length=8), sub=x, bin_name=bin_name,
+                         special_protocols=special_protocols) for x in subscriptions if x] if subscriptions else [])
 
     # 仅更新已有订阅
     if tasks and kwargs.get("refresh", False):
-        logger.info("skip registering new accounts, will use existing subscriptions for refreshing")
+        logger.info(
+            "skip registering new accounts, will use existing subscriptions for refreshing")
         return tasks
 
     domains, delimiter = {}, "@#@#"
@@ -164,10 +178,14 @@ def assign(
     customize_link = utils.trim(kwargs.get("customize_link", ""))
     if customize_link:
         if isurl(customize_link):
-            domains.update(parse_domains(content=utils.http_get(url=customize_link)))
+            domains.update(
+                parse_domains(
+                    content=utils.http_get(
+                        url=customize_link)))
         else:
             local_file = os.path.join(DATA_BASE, customize_link)
-            if local_file != fullpath and os.path.exists(local_file) and os.path.isfile(local_file):
+            if local_file != fullpath and os.path.exists(
+                    local_file) and os.path.isfile(local_file):
                 with open(local_file, "r", encoding="UTF8") as f:
                     domains.update(parse_domains(content=str(f.read())))
 
@@ -176,7 +194,10 @@ def assign(
         return tasks
 
     if overwrite:
-        crawl.save_candidates(candidates=domains, filepath=fullpath, delimiter=delimiter)
+        crawl.save_candidates(
+            candidates=domains,
+            filepath=fullpath,
+            delimiter=delimiter)
 
     for domain, param in domains.items():
         name = crawl.naming_task(url=domain)
@@ -202,7 +223,8 @@ def aggregate(args: argparse.Namespace) -> None:
         # 提取 gist 用户名及 id
         words = utils.trim(link).split("/", maxsplit=1)
         if len(words) != 2:
-            logger.error(f"cannot extract username and gist id due to invalid github gist link")
+            logger.error(
+                f"cannot extract username and gist id due to invalid github gist link")
             return "", ""
 
         return utils.trim(words[0]), utils.trim(words[1])
@@ -243,7 +265,10 @@ def aggregate(args: argparse.Namespace) -> None:
     if os.path.exists(generate_conf) and os.path.isfile(generate_conf):
         os.remove(generate_conf)
 
-    results = utils.multi_thread_run(func=workflow.executewrapper, tasks=tasks, num_threads=args.num)
+    results = utils.multi_thread_run(
+        func=workflow.executewrapper,
+        tasks=tasks,
+        num_threads=args.num)
     proxies = list(itertools.chain.from_iterable([x[1] for x in results if x]))
 
     if len(proxies) == 0:
@@ -262,7 +287,8 @@ def aggregate(args: argparse.Namespace) -> None:
         # 可执行权限
         utils.chmod(binpath)
 
-        logger.info(f"startup clash now, workspace: {workspace}, config: {confif_file}")
+        logger.info(
+            f"startup clash now, workspace: {workspace}, config: {confif_file}")
         process = subprocess.Popen(
             [
                 binpath,
@@ -272,12 +298,13 @@ def aggregate(args: argparse.Namespace) -> None:
                 os.path.join(workspace, confif_file),
             ]
         )
-        logger.info(f"clash start success, begin check proxies, num: {len(proxies)}")
+        logger.info(
+            f"clash start success, begin check proxies, num: {
+                len(proxies)}")
 
         time.sleep(random.randint(3, 6))
-        params = [
-            [p, clash.EXTERNAL_CONTROLLER, 5000, args.url, args.delay, False] for p in proxies if isinstance(p, dict)
-        ]
+        params = [[p, clash.EXTERNAL_CONTROLLER, 5000, args.url,
+                   args.delay, False] for p in proxies if isinstance(p, dict)]
 
         masks = utils.multi_thread_run(
             func=clash.check,
@@ -289,7 +316,7 @@ def aggregate(args: argparse.Namespace) -> None:
         # 关闭clash
         try:
             process.terminate()
-        except:
+        except BaseException:
             logger.error(f"terminate clash process error")
 
         nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]
@@ -332,12 +359,20 @@ def aggregate(args: argparse.Namespace) -> None:
 
         filename = subconverter.get_filename(target=target)
         list_only = False if target == "v2ray" or target == "mixed" or "ss" in target else not args.all
-        targets.append((convert_name, filename, target, list_only, args.vitiate))
+        targets.append(
+            (convert_name,
+             filename,
+             target,
+             list_only,
+             args.vitiate))
 
     for t in targets:
-        success = subconverter.generate_conf(generate_conf, t[0], source, t[1], t[2], True, t[3], t[4])
+        success = subconverter.generate_conf(
+            generate_conf, t[0], source, t[1], t[2], True, t[3], t[4])
         if not success:
-            logger.error(f"cannot generate subconverter config file for target: {t[2]}")
+            logger.error(
+                f"cannot generate subconverter config file for target: {
+                    t[2]}")
             continue
 
         if subconverter.convert(binname=subconverter_bin, artifact=t[0]):
@@ -349,10 +384,15 @@ def aggregate(args: argparse.Namespace) -> None:
     if len(records) > 0:
         os.remove(supplier)
     else:
-        logger.error(f"all targets convert failed, you can view the temporary file: {supplier}")
+        logger.error(
+            f"all targets convert failed, you can view the temporary file: {supplier}")
         sys.exit(1)
 
-    logger.info(f"found {len(nodes)} proxies, save it to {list(records.values())}")
+    logger.info(
+        f"found {
+            len(nodes)} proxies, save it to {
+            list(
+                records.values())}")
 
     life, traffic = max(0, args.life), max(0, args.flow)
     if life > 0 or traffic > 0:
@@ -370,23 +410,40 @@ def aggregate(args: argparse.Namespace) -> None:
         total = len(urls)
 
         # 筛选出为符合要求的订阅
-        urls = [new_subscriptions[i] for i in range(len(new_subscriptions)) if results[i][0] and not results[i][1]]
+        urls = [new_subscriptions[i] for i in range(
+            len(new_subscriptions)) if results[i][0] and not results[i][1]]
         discard = len(tasks) - len(urls)
 
         # 合并新老订阅
         urls.extend(list(old_subscriptions))
 
-        logger.info(f"filter subscriptions finished, total: {total}, found: {len(urls)}, discard: {discard}")
+        logger.info(
+            f"filter subscriptions finished, total: {total}, found: {
+                len(urls)}, discard: {discard}")
 
-    utils.write_file(filename=os.path.join(DATA_BASE, subscribes_file), lines=urls)
-    domains = [utils.extract_domain(url=x, include_protocal=True) for x in urls]
+    utils.write_file(
+        filename=os.path.join(
+            DATA_BASE,
+            subscribes_file),
+        lines=urls)
+    domains = [
+        utils.extract_domain(
+            url=x,
+            include_protocal=True) for x in urls]
 
     # 保存实际可使用的网站列表
-    utils.write_file(filename=os.path.join(DATA_BASE, "valid-domains.txt"), lines=list(set(domains)))
+    utils.write_file(
+        filename=os.path.join(
+            DATA_BASE,
+            "valid-domains.txt"),
+        lines=list(
+            set(domains)))
 
     # 如有必要，上传至 Gist
     if gist_id and access_token:
-        files, config = {}, {"gistid": gist_id, "filename": list(records.keys())[0]}
+        files, config = {}, {
+            "gistid": gist_id, "filename": list(
+                records.keys())[0]}
 
         for k, v in records.items():
             if os.path.exists(v) and os.path.isfile(v):
@@ -396,17 +453,23 @@ def aggregate(args: argparse.Namespace) -> None:
                         files[k] = {"content": lines, "filename": k}
 
         if urls:
-            files[subscribes_file] = {"content": "\n".join(urls), "filename": subscribes_file}
+            files[subscribes_file] = {
+                "content": "\n".join(urls),
+                "filename": subscribes_file}
 
         if files:
             push_client = push.PushToGist(token=access_token)
 
             # 上传
-            success = push_client.push_to(content="", config=config, payload={"files": files}, group="collect")
+            success = push_client.push_to(
+                content="", config=config, payload={
+                    "files": files}, group="collect")
             if success:
-                logger.info(f"upload proxies and subscriptions to gist successed")
+                logger.info(
+                    f"upload proxies and subscriptions to gist successed")
             else:
-                logger.error(f"upload proxies and subscriptions to gist failed")
+                logger.error(
+                    f"upload proxies and subscriptions to gist failed")
 
     # 清理工作空间
     workflow.cleanup(workspace, [])
@@ -420,7 +483,8 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                 parts.extend(action.option_strings)
 
                 # 移除使用帮助信息中 -t 或 --targets 附带的过长的可选项信息
-                if action.nargs != 0 and action.option_strings != ["-t", "--targets"]:
+                if action.nargs != 0 and action.option_strings != [
+                        "-t", "--targets"]:
                     default = action.dest.upper()
                     args_string = self._format_args(action, default)
                     parts[-1] += " " + args_string
@@ -565,8 +629,12 @@ if __name__ == "__main__":
         "--targets",
         nargs="+",
         choices=subconverter.CONVERT_TARGETS,
-        default=["clash", "v2ray", "singbox"],
-        help=f"choose one or more generated profile type. default to clash, v2ray and singbox. supported: {subconverter.CONVERT_TARGETS}",
+        default=[
+            "clash",
+            "v2ray",
+            "singbox"],
+        help=f"choose one or more generated profile type. default to clash, v2ray and singbox. supported: {
+            subconverter.CONVERT_TARGETS}",
     )
 
     parser.add_argument(

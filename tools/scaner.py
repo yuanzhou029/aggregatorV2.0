@@ -47,7 +47,11 @@ PATH = os.path.abspath(os.path.dirname(__file__))
 """
 
 
-def convert(chars: bytes, filepath: str = "", persist: bool = False, includes: str = "all") -> list:
+def convert(
+        chars: bytes,
+        filepath: str = "",
+        persist: bool = False,
+        includes: str = "all") -> list:
     if chars is None or b"" == chars:
         return []
 
@@ -143,7 +147,7 @@ def parse_v2ray(node: dict, uuid: str) -> dict:
     if len(items) > 5:
         obfs = items[5]
         opts = {}
-        if obfs != None and obfs.strip() != "":
+        if obfs is not None and obfs.strip() != "":
             for s in obfs.split("|"):
                 words = s.split("=")
                 if len(words) != 2:
@@ -224,7 +228,11 @@ def parse_ssr(node: dict, user: dict) -> dict:
     return item
 
 
-def parse(node: dict, uuid: str, user: dict = None, includes: str = "all") -> dict:
+def parse(
+        node: dict,
+        uuid: str,
+        user: dict = None,
+        includes: str = "all") -> dict:
     def get_protocal(num: int) -> str:
         if num in [0, 10, 13]:
             return "ssr"
@@ -246,7 +254,10 @@ def parse(node: dict, uuid: str, user: dict = None, includes: str = "all") -> di
     elif protocal == "ssr" and includes in ["ssr", "all"]:
         return parse_ssr(node, user)
     elif protocal == "unknow":
-        print("cannot parse, server={}\ttype={}".format(node.get("server"), protocal))
+        print(
+            "cannot parse, server={}\ttype={}".format(
+                node.get("server"),
+                protocal))
 
     return None
 
@@ -254,13 +265,16 @@ def parse(node: dict, uuid: str, user: dict = None, includes: str = "all") -> di
 def login(url, params, headers, retry) -> str:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
 
         response = urllib.request.urlopen(request, timeout=10, context=CTX)
         if response.getcode() == 200:
             return response.getheader("Set-Cookie")
         else:
-            print("[LoginError]: {}".format(response.read().decode("unicode_escape")))
+            print(
+                "[LoginError]: {}".format(
+                    response.read().decode("unicode_escape")))
             return ""
 
     except Exception as e:
@@ -273,7 +287,8 @@ def login(url, params, headers, retry) -> str:
 def register(url: str, params: dict, retry: int) -> bool:
     try:
         data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-        request = urllib.request.Request(url, data=data, method="POST", headers=HEADER)
+        request = urllib.request.Request(
+            url, data=data, method="POST", headers=HEADER)
 
         response = urllib.request.urlopen(request, timeout=10, context=CTX)
         if response.getcode() == 200:
@@ -282,10 +297,13 @@ def register(url: str, params: dict, retry: int) -> bool:
             if "ret" in kv and kv["ret"] == 1:
                 return True
 
-        print("[ScanerRegisterError] domain: {}, message: {}".format(url, response.read().decode("unicode_escape")))
+        print("[ScanerRegisterError] domain: {}, message: {}".format(
+            url, response.read().decode("unicode_escape")))
         return False
     except Exception as e:
-        print("[ScanerRegisterError] domain: {}, message: {}".format(url, str(e)))
+        print(
+            "[ScanerRegisterError] domain: {}, message: {}".format(
+                url, str(e)))
 
         retry -= 1
         return register(url, params, retry) if retry > 0 else False
@@ -301,7 +319,8 @@ def reload(url: str, config: str) -> None:
 
     try:
         data = bytes(json.dumps(params), encoding="utf8")
-        request = urllib.request.Request(url, data=data, headers=header, method="PUT")
+        request = urllib.request.Request(
+            url, data=data, headers=header, method="PUT")
 
         response = urllib.request.urlopen(request, timeout=10, context=CTX)
         if response.getcode() == 204:
@@ -324,7 +343,12 @@ def get_cookie(text) -> str:
     return cookie
 
 
-def fetch_nodes(domain: str, email: str, passwd: str, headers: dict = None, retry: int = 3) -> bytes:
+def fetch_nodes(
+        domain: str,
+        email: str,
+        passwd: str,
+        headers: dict = None,
+        retry: int = 3) -> bytes:
     headers = deepcopy(HEADER) if not headers else headers
     login_url = domain + "/auth/login"
     headers["origin"] = domain
@@ -341,7 +365,8 @@ def fetch_nodes(domain: str, email: str, passwd: str, headers: dict = None, retr
     while retry > 0 and not content:
         retry -= 1
         try:
-            request = urllib.request.Request(domain + "/getnodelist", headers=headers)
+            request = urllib.request.Request(
+                domain + "/getnodelist", headers=headers)
             response = urllib.request.urlopen(request, timeout=30, context=CTX)
             if response.getcode() == 200:
                 content = response.read()
@@ -353,7 +378,9 @@ def fetch_nodes(domain: str, email: str, passwd: str, headers: dict = None, retr
                     )
                 )
         except Exception as e:
-            print("[ScanerFetchError] domain: {}, message: {}".format(domain, str(e)))
+            print(
+                "[ScanerFetchError] domain: {}, message: {}".format(
+                    domain, str(e)))
 
     return content
 
@@ -364,7 +391,7 @@ def check(domain: str) -> bool:
         if content:
             data = json.loads(content)
             return "ret" in data and data["ret"] == -1
-    except:
+    except BaseException:
         pass
 
     return False
@@ -372,7 +399,7 @@ def check(domain: str) -> bool:
 
 def extract_domain(url) -> str:
     if not url or not re.match(
-        "^(https?://(?:[a-zA-Z0-9\u4e00-\u9fa5\-]+\.)+[a-zA-Z0-9\u4e00-\u9fa5\-]+)(:\d+)?(\/.*)?(\?.*)?(#.*)?$",
+        "^(https?://(?:[a-zA-Z0-9\u4e00-\u9fa5\\-]+\\.)+[a-zA-Z0-9\u4e00-\u9fa5\\-]+)(:\\d+)?(\\/.*)?(\\?.*)?(#.*)?$",
         url,
     ):
         return ""
@@ -439,11 +466,12 @@ def encoding_url(url: str) -> str:
         return url
 
     # 遍历进行 punycode 编码
-    punycodes = list(map(lambda x: "xn--" + x.encode("punycode").decode("utf-8"), cn_chars))
+    punycodes = list(map(lambda x: "xn--" +
+                         x.encode("punycode").decode("utf-8"), cn_chars))
 
     # 对原 url 进行替换
     for c, pc in zip(cn_chars, punycodes):
-        url = url[: url.find(c)] + pc + url[url.find(c) + len(c) :]
+        url = url[: url.find(c)] + pc + url[url.find(c) + len(c):]
 
     return url
 
@@ -457,7 +485,7 @@ def http_get(
     interval: float = 1,
 ) -> str:
     if not re.match(
-        "^(https?:\/\/(\S+\.)+[a-zA-Z]+)(:\d+)?(\/.*)?(\?.*)?(#.*)?$",
+        "^(https?:\\/\\/(\\S+\\.)+[a-zA-Z]+)(:\\d+)?(\\/.*)?(\\?.*)?(#.*)?$",
         url,
     ):
         return ""
@@ -482,7 +510,8 @@ def http_get(
                 url += f"?{data}"
 
         request = urllib.request.Request(url=url, headers=headers)
-        if proxy and (proxy.startswith("https://") or proxy.startswith("http://")):
+        if proxy and (proxy.startswith("https://")
+                      or proxy.startswith("http://")):
             host, protocal = "", ""
             if proxy.startswith("https://"):
                 host, protocal = proxy[8:], "https"
@@ -495,7 +524,7 @@ def http_get(
         status_code = response.getcode()
         try:
             content = str(content, encoding="utf8")
-        except:
+        except BaseException:
             content = gzip.decompress(content).decode("utf8")
         if status_code != 200:
             return ""
@@ -536,10 +565,10 @@ def get_telegram_pages(channel: str) -> int:
     content = http_get(url=url)
     before = 0
     try:
-        regex = f'<link\s+rel="canonical"\s+href="/s/{channel}\?before=(\d+)">'
+        regex = f'<link\\s+rel="canonical"\\s+href="/s/{channel}\\?before=(\\d+)">'
         groups = re.findall(regex, content)
         before = int(groups[0]) if groups else before
-    except:
+    except BaseException:
         print(f"[CrawlError] cannot count page num, chanel: {channel}")
 
     return before
@@ -554,10 +583,10 @@ def extract_airport_site(url: str) -> list:
         print(f"[CrawlError] cannot any content from url: {url}")
         return []
     try:
-        regex = 'href="(https?://(?:[a-zA-Z0-9\u4e00-\u9fa5\-]+\.)+[a-zA-Z0-9\u4e00-\u9fa5\-]+/?)"\s+target="_blank"\s+rel="noopener">'
+        regex = 'href="(https?://(?:[a-zA-Z0-9\u4e00-\u9fa5\\-]+\\.)+[a-zA-Z0-9\u4e00-\u9fa5\\-]+/?)"\\s+target="_blank"\\s+rel="noopener">'
         groups = re.findall(regex, content)
         return list(set(groups)) if groups else []
-    except:
+    except BaseException:
         return []
 
 
@@ -566,7 +595,8 @@ def crawl_channel(channel: str, page_num: int, fun: typing.Callable) -> list:
     if not channel or not fun or not isinstance(fun, typing.Callable):
         return []
 
-    print(f"[TelegramCrawl] starting crawl from telegram, channel: {channel}, pages: {page_num}")
+    print(
+        f"[TelegramCrawl] starting crawl from telegram, channel: {channel}, pages: {page_num}")
 
     page_num = max(page_num, 1)
     url = f"https://t.me/s/{channel}"
@@ -592,7 +622,10 @@ def crawl_channel(channel: str, page_num: int, fun: typing.Callable) -> list:
 
 
 def collect_airport(channel: str, page_num: int, thread_num: int = 50) -> list:
-    domains = crawl_channel(channel=channel, page_num=page_num, fun=extract_airport_site)
+    domains = crawl_channel(
+        channel=channel,
+        page_num=page_num,
+        fun=extract_airport_site)
 
     if not domains:
         return []
@@ -603,7 +636,9 @@ def collect_airport(channel: str, page_num: int, thread_num: int = 50) -> list:
         semaphore = multiprocessing.Semaphore(thread_num)
         for domain in list(set(domains)):
             semaphore.acquire()
-            p = multiprocessing.Process(target=validate_domain, args=(domain, availables, semaphore))
+            p = multiprocessing.Process(
+                target=validate_domain, args=(
+                    domain, availables, semaphore))
             p.start()
             processes.append(p)
         for p in processes:
@@ -611,12 +646,15 @@ def collect_airport(channel: str, page_num: int, thread_num: int = 50) -> list:
 
         domains = list(availables)
         print(
-            f"[AirPortCollector] finished collect air port from telegram channel: {channel}, availables: {len(domain)}"
-        )
+            f"[AirPortCollector] finished collect air port from telegram channel: {channel}, availables: {
+                len(domain)}")
         return domains
 
 
-def validate_domain(url: str, availables: ListProxy, semaphore: Semaphore) -> None:
+def validate_domain(
+        url: str,
+        availables: ListProxy,
+        semaphore: Semaphore) -> None:
     try:
         if not url or not check(url):
             return
@@ -638,7 +676,12 @@ if __name__ == "__main__":
         help="reload clash config if true",
     )
 
-    parser.add_argument("-s", "--skip", dest="skip", action="store_true", help="skip register")
+    parser.add_argument(
+        "-s",
+        "--skip",
+        dest="skip",
+        action="store_true",
+        help="skip register")
 
     parser.add_argument(
         "-b",
@@ -674,7 +717,13 @@ if __name__ == "__main__":
         help="username or email",
     )
 
-    parser.add_argument("-p", "--passwd", type=str, required=False, default="", help="password")
+    parser.add_argument(
+        "-p",
+        "--passwd",
+        type=str,
+        required=False,
+        default="",
+        help="password")
 
     parser.add_argument(
         "-t",
@@ -725,16 +774,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.batch:
-        if not args.address or args.address.startswith("http://") or args.address.startswith("https://"):
+        if not args.address or args.address.startswith(
+                "http://") or args.address.startswith("https://"):
             raise ValueError("local file path cannot be url")
 
         if not (os.path.exists(args.address) and os.path.isfile(args.address)):
-            print("select batch mode, but file not found, path: {}, begin crawl from telegram".format(args.address))
-            domains = collect_airport(channel="jichang_list", page_num=sys.maxsize)
+            print(
+                "select batch mode, but file not found, path: {}, begin crawl from telegram".format(
+                    args.address))
+            domains = collect_airport(
+                channel="jichang_list", page_num=sys.maxsize)
             if not domains:
                 sys.exit(-1)
 
-            os.makedirs(os.path.abspath(os.path.dirname(args.address)), exist_ok=True)
+            os.makedirs(
+                os.path.abspath(
+                    os.path.dirname(
+                        args.address)),
+                exist_ok=True)
             with open(args.address, "w+", encoding="UTF8") as f:
                 f.write("\n".join(domains))
                 f.flush()
@@ -747,7 +804,9 @@ if __name__ == "__main__":
                     print("skip invalidate domain, url: {}".format(line))
                     continue
 
-                filepath = os.path.join(args.path, "{}.yaml".format(domain.split("/")[2]))
+                filepath = os.path.join(
+                    args.path, "{}.yaml".format(
+                        domain.split("/")[2]))
                 tasks.append((domain, filepath, args))
 
         import multiprocessing

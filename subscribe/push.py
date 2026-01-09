@@ -19,7 +19,11 @@ LOCAL_STORAGE = "local"
 
 
 class PushTo(object):
-    def __init__(self, token: str = "", base: str = "", domain: str = "") -> None:
+    def __init__(
+            self,
+            token: str = "",
+            base: str = "",
+            domain: str = "") -> None:
         base, domain = utils.trim(base), utils.trim(domain)
         if base and not domain:
             domain = base
@@ -45,10 +49,15 @@ class PushTo(object):
                 f.flush()
 
             return True
-        except:
+        except BaseException:
             return False
 
-    def push_file(self, filepath: str, config: dict, group: str = "", retry: int = 5) -> bool:
+    def push_file(
+            self,
+            filepath: str,
+            config: dict,
+            group: str = "",
+            retry: int = 5) -> bool:
         if not os.path.exists(filepath) or not os.path.isfile(filepath):
             logger.error(f"[PushFileError] file {filepath} not found")
             return False
@@ -57,30 +66,49 @@ class PushTo(object):
         with open(filepath, "r", encoding="utf8") as f:
             content = f.read()
 
-        return self.push_to(content=content, config=config, group=group, retry=retry)
+        return self.push_to(
+            content=content,
+            config=config,
+            group=group,
+            retry=retry)
 
-    def push_to(self, content: str, config: dict, group: str = "", retry: int = 5, **kwargs) -> bool:
+    def push_to(
+            self,
+            content: str,
+            config: dict,
+            group: str = "",
+            retry: int = 5,
+            **kwargs) -> bool:
         if not self.validate(config=config):
-            logger.error(f"[PushError] push config is invalidate, domain: {self.name}")
+            logger.error(
+                f"[PushError] push config is invalidate, domain: {
+                    self.name}")
             return False
 
         if config.get("local", ""):
             self._storage(content=content, filename=config.get("local"))
 
-        url, data, headers = self._generate_payload(content=content, config=config)
+        url, data, headers = self._generate_payload(
+            content=content, config=config)
         payload = kwargs.get("payload", None)
         if payload and isinstance(payload, dict):
             try:
                 data = json.dumps(payload).encode("UTF8")
-            except:
-                logger.error(f"[PushError] invalid payload, domain: {self.name}")
+            except BaseException:
+                logger.error(
+                    f"[PushError] invalid payload, domain: {
+                        self.name}")
                 return False
 
         try:
-            request = urllib.request.Request(url=url, data=data, headers=headers, method=self.method)
-            response = urllib.request.urlopen(request, timeout=60, context=utils.CTX)
+            request = urllib.request.Request(
+                url=url, data=data, headers=headers, method=self.method)
+            response = urllib.request.urlopen(
+                request, timeout=60, context=utils.CTX)
             if self._is_success(response):
-                logger.info(f"[PushSuccess] push subscribes information to {self.name} successed, group=[{group}]")
+                logger.info(
+                    f"[PushSuccess] push subscribes information to {
+                        self.name} successed, group=[{group}]")
                 return True
             else:
                 logger.info(
@@ -99,10 +127,11 @@ class PushTo(object):
                     except Exception:
                         message = "cannot read error messgae from response"
                     logger.error(
-                        f"[PushError] request failed, code: {code}, url: {url}, message: {message}, data: {data}"
-                    )
+                        f"[PushError] request failed, code: {code}, url: {url}, message: {message}, data: {data}")
             except Exception:
-                logger.error(f"[PushError] failed to process exception: {traceback.format_exc()}")
+                logger.error(
+                    f"[PushError] failed to process exception: {
+                        traceback.format_exc()}")
 
             self._error_handler(group=group)
 
@@ -115,11 +144,15 @@ class PushTo(object):
     def _is_success(self, response: HTTPResponse) -> bool:
         return response and response.getcode() == 200
 
-    def _generate_payload(self, content: str, config: dict) -> tuple[str, str, dict]:
+    def _generate_payload(self, content: str,
+                          config: dict) -> tuple[str, str, dict]:
         raise NotImplementedError
 
     def _error_handler(self, group: str = "") -> None:
-        logger.error(f"[PushError]: group=[{group}], name: {self.name}, error message: \n{traceback.format_exc()}")
+        logger.error(
+            f"[PushError]: group=[{group}], name: {
+                self.name}, error message: \n{
+                traceback.format_exc()}")
 
     def validate(self, config: dict) -> bool:
         raise NotImplementedError
@@ -137,11 +170,13 @@ class PushToPasteGG(PushTo):
     def __init__(self, token: str, base: str = "", domain: str = "") -> None:
         base = utils.trim(base).removesuffix("/") or "https://api.paste.gg"
         if not isurl(base):
-            raise ValueError(f"[PushError] invalid base address for pastegg: {base}")
+            raise ValueError(
+                f"[PushError] invalid base address for pastegg: {base}")
 
         domain = utils.trim(domain).removesuffix("/") or "https://paste.gg"
         if not isurl(domain):
-            raise ValueError(f"[PushError] invalid domain address for pastegg: {domain}")
+            raise ValueError(
+                f"[PushError] invalid domain address for pastegg: {domain}")
 
         super().__init__(token=token, base=base, domain=domain)
 
@@ -151,7 +186,7 @@ class PushToPasteGG(PushTo):
         self.api_address = f"{base}/v1/pastes"
 
     def validate(self, config: dict) -> bool:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return False
 
         folderid = config.get("folderid", "")
@@ -159,7 +194,8 @@ class PushToPasteGG(PushTo):
 
         return "" != self.token.strip() and "" != folderid.strip() and "" != fileid.strip()
 
-    def _generate_payload(self, content: str, config: dict) -> tuple[str, str, dict]:
+    def _generate_payload(self, content: str,
+                          config: dict) -> tuple[str, str, dict]:
         folderid = config.get("folderid", "")
         fileid = config.get("fileid", "")
 
@@ -168,7 +204,8 @@ class PushToPasteGG(PushTo):
             "Content-Type": "application/json",
             "User-Agent": utils.USER_AGENT,
         }
-        data = json.dumps({"content": {"format": "text", "value": content}}).encode("UTF8")
+        data = json.dumps(
+            {"content": {"format": "text", "value": content}}).encode("UTF8")
         url = f"{self.api_address}/{folderid}/files/{fileid}"
 
         return url, data, headers
@@ -177,18 +214,24 @@ class PushToPasteGG(PushTo):
         return response and response.getcode() == 204
 
     def _error_handler(self, group: str = "") -> None:
-        logger.error(f"[PushError]: group=[{group}], name: {self.name}, error message: \n{traceback.format_exc()}")
+        logger.error(
+            f"[PushError]: group=[{group}], name: {
+                self.name}, error message: \n{
+                traceback.format_exc()}")
 
     def filter_push(self, config: dict) -> dict:
         records = {}
         for k, v in config.items():
-            if self.token and v.get("folderid", "") and v.get("fileid", "") and v.get("username", ""):
+            if self.token and v.get(
+                    "folderid", "") and v.get(
+                    "fileid", "") and v.get(
+                    "username", ""):
                 records[k] = v
 
         return records
 
     def raw_url(self, config: dict) -> str:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return ""
 
         fileid = config.get("fileid", "")
@@ -207,7 +250,8 @@ class PushToDevbin(PushToPasteGG):
     def __init__(self, token: str, base: str = "") -> None:
         base = utils.trim(base).removesuffix("/") or "https://devbin.dev"
         if not isurl(base):
-            raise ValueError(f"[PushError] invalid base address for devbin: {base}")
+            raise ValueError(
+                f"[PushError] invalid base address for devbin: {base}")
 
         super().__init__(token=token, base=base)
 
@@ -216,7 +260,7 @@ class PushToDevbin(PushToPasteGG):
         self.api_address = f"{base}/api/v3/paste"
 
     def validate(self, config: dict) -> bool:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return False
 
         fileid = config.get("fileid", "")
@@ -230,7 +274,8 @@ class PushToDevbin(PushToPasteGG):
 
         return records
 
-    def _generate_payload(self, content: str, config: dict) -> tuple[str, str, dict]:
+    def _generate_payload(self, content: str,
+                          config: dict) -> tuple[str, str, dict]:
         fileid = config.get("fileid", "")
 
         headers = {
@@ -238,7 +283,8 @@ class PushToDevbin(PushToPasteGG):
             "Content-Type": "application/json",
             "Accept": "*/*",
         }
-        data = json.dumps({"content": content, "syntaxName": "auto"}).encode("UTF8")
+        data = json.dumps(
+            {"content": content, "syntaxName": "auto"}).encode("UTF8")
         url = f"{self.api_address}/{fileid}"
 
         return url, data, headers
@@ -247,7 +293,11 @@ class PushToDevbin(PushToPasteGG):
         return response and response.getcode() == 201
 
     def raw_url(self, config: dict) -> str:
-        if not config or type(config) != dict or not config.get("fileid", ""):
+        if not config or not isinstance(
+                config,
+                dict) or not config.get(
+                "fileid",
+                ""):
             return ""
 
         fileid = config.get("fileid", "")
@@ -260,7 +310,8 @@ class PushToPastefy(PushToDevbin):
     def __init__(self, token: str, base: str = "") -> None:
         base = utils.trim(base).removesuffix("/") or "https://pastefy.app"
         if not isurl(base):
-            raise ValueError(f"[PushError] invalid base address for pastefy: {base}")
+            raise ValueError(
+                f"[PushError] invalid base address for pastefy: {base}")
 
         super().__init__(token=token, base=base)
 
@@ -269,7 +320,8 @@ class PushToPastefy(PushToDevbin):
         self.domain = base
         self.api_address = f"{base}/api/v2/paste"
 
-    def _generate_payload(self, content: str, config: dict) -> tuple[str, str, dict]:
+    def _generate_payload(self, content: str,
+                          config: dict) -> tuple[str, str, dict]:
         fileid = config.get("fileid", "")
 
         headers = {
@@ -289,14 +341,17 @@ class PushToPastefy(PushToDevbin):
 
         try:
             return json.loads(response.read()).get("success", "false")
-        except:
+        except BaseException:
             return False
 
     def _error_handler(self, group: str = "") -> None:
-        logger.error(f"[PushError]: group=[{group}], name: {self.name}, error message: \n{traceback.format_exc()}")
+        logger.error(
+            f"[PushError]: group=[{group}], name: {
+                self.name}, error message: \n{
+                traceback.format_exc()}")
 
     def raw_url(self, config: dict) -> str:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return ""
 
         fileid = utils.trim(config.get("fileid", ""))
@@ -312,11 +367,13 @@ class PushToImperial(PushToPasteGG):
     def __init__(self, token: str, base: str = "", domain: str = "") -> None:
         base = utils.trim(base).removesuffix("/") or "https://api.imperialb.in"
         if not isurl(base):
-            raise ValueError(f"[PushError] invalid base address for imperial: {base}")
+            raise ValueError(
+                f"[PushError] invalid base address for imperial: {base}")
 
         domain = utils.trim(domain).removesuffix("/") or "https://imperialb.in"
         if not isurl(domain):
-            raise ValueError(f"[PushError] invalid domain address for imperial: {domain}")
+            raise ValueError(
+                f"[PushError] invalid domain address for imperial: {domain}")
 
         super().__init__(token=token, base=base, domain=domain)
 
@@ -333,7 +390,7 @@ class PushToImperial(PushToPasteGG):
         return f"{self.domain}/r/{fileid}"
 
     def validate(self, config: dict) -> bool:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return False
 
         fileid = config.get("fileid", "")
@@ -347,7 +404,8 @@ class PushToImperial(PushToPasteGG):
 
         return records
 
-    def _generate_payload(self, content: str, config: dict) -> tuple[str, str, dict]:
+    def _generate_payload(self, content: str,
+                          config: dict) -> tuple[str, str, dict]:
         fileid = config.get("fileid", "")
 
         headers = {
@@ -366,7 +424,7 @@ class PushToImperial(PushToPasteGG):
 
         try:
             return json.loads(response.read()).get("success", "false")
-        except:
+        except BaseException:
             return False
 
 
@@ -378,19 +436,29 @@ class PushToLocal(PushTo):
     def validate(self, config: dict) -> bool:
         return config is not None and config.get("fileid", "")
 
-    def push_to(self, content: str, config: dict, group: str = "", retry: int = 5) -> bool:
+    def push_to(
+            self,
+            content: str,
+            config: dict,
+            group: str = "",
+            retry: int = 5) -> bool:
         folder = config.get("folderid", "")
         filename = config.get("fileid", "")
-        success = self._storage(content=content, filename=filename, folder=folder)
+        success = self._storage(
+            content=content,
+            filename=filename,
+            folder=folder)
         message = "successed" if success else "failed"
-        logger.info(f"[PushInfo] push subscribes information to {self.name} {message}, group=[{group}]")
+        logger.info(
+            f"[PushInfo] push subscribes information to {
+                self.name} {message}, group=[{group}]")
         return success
 
     def filter_push(self, config: dict) -> dict:
         return {k: v for k, v in config.items() if v.get("fileid", "")}
 
     def raw_url(self, config: dict) -> str:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return ""
 
         fileid = config.get("fileid", "")
@@ -417,7 +485,8 @@ class PushToGist(PushTo):
 
         return "" != self.token.strip() and "" != gistid.strip() and "" != filename.strip()
 
-    def _generate_payload(self, content: str, config: dict) -> tuple[str, str, dict]:
+    def _generate_payload(self, content: str,
+                          config: dict) -> tuple[str, str, dict]:
         gistid = config.get("gistid", "")
         filename = config.get("filename", "")
 
@@ -430,7 +499,8 @@ class PushToGist(PushTo):
             "User-Agent": utils.USER_AGENT,
         }
 
-        data = json.dumps({"files": {filename: {"content": content, "filename": filename}}}).encode("UTF8")
+        data = json.dumps(
+            {"files": {filename: {"content": content, "filename": filename}}}).encode("UTF8")
         return url, data, headers
 
     def _is_success(self, response: HTTPResponse) -> bool:
@@ -441,13 +511,17 @@ class PushToGist(PushTo):
             return {}
 
         return {
-            k: v
-            for k, v in config.items()
-            if k and isinstance(v, dict) and v.get("gistid", "") and v.get("filename", "")
-        }
+            k: v for k,
+            v in config.items() if k and isinstance(
+                v,
+                dict) and v.get(
+                "gistid",
+                "") and v.get(
+                "filename",
+                "")}
 
     def raw_url(self, config: dict) -> str:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return ""
 
         username = utils.trim(config.get("username", ""))
@@ -471,7 +545,8 @@ class PushToQBin(PushToPastefy):
     def __init__(self, token: str, base: str = "") -> None:
         base = utils.trim(base).removesuffix("/") or "https://qbin.me"
         if not isurl(base):
-            raise ValueError(f"[PushError] invalid base address for qbin: {base}")
+            raise ValueError(
+                f"[PushError] invalid base address for qbin: {base}")
 
         super().__init__(token=token, base=base)
 
@@ -481,13 +556,14 @@ class PushToQBin(PushToPastefy):
         self.api_address = f"{base}/save"
 
     def validate(self, config: dict) -> bool:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return False
 
         fileid = config.get("fileid", "")
         return "" != self.token.strip() and "" != utils.trim(fileid)
 
-    def _generate_payload(self, content: str, config: dict) -> tuple[str, str, dict]:
+    def _generate_payload(self, content: str,
+                          config: dict) -> tuple[str, str, dict]:
         fileid = config.get("fileid", "")
         password = config.get("password", "")
         expire = config.get("expire", 0)
@@ -514,7 +590,7 @@ class PushToQBin(PushToPastefy):
         try:
             result = json.loads(response.read())
             return result.get("status", 403) == 200
-        except:
+        except BaseException:
             return False
 
     def filter_push(self, config: dict) -> dict:
@@ -526,7 +602,7 @@ class PushToQBin(PushToPastefy):
         return records
 
     def raw_url(self, config: dict) -> str:
-        if not config or type(config) != dict:
+        if not config or not isinstance(config, dict):
             return ""
 
         fileid = utils.trim(config.get("fileid", ""))
@@ -542,7 +618,8 @@ class PushToQBin(PushToPastefy):
         return url
 
 
-SUPPORTED_ENGINES = set(["gist", "imperial", "pastefy", "pastegg", "qbin"] + [LOCAL_STORAGE])
+SUPPORTED_ENGINES = set(
+    ["gist", "imperial", "pastefy", "pastegg", "qbin"] + [LOCAL_STORAGE])
 
 
 @dataclass
@@ -561,7 +638,7 @@ class PushConfig(object):
 
     @classmethod
     def from_dict(cls, data: dict) -> "PushConfig":
-        if not data or type(data) != dict:
+        if not data or not isinstance(data, dict):
             return None
 
         engine = utils.trim(data.get("engine", ""))
@@ -585,7 +662,8 @@ def get_instance(config: PushConfig) -> PushTo:
 
     token = utils.trim(config.token or os.environ.get("PUSH_TOKEN", ""))
     if engine != LOCAL_STORAGE and not token:
-        raise ValueError(f"[PushError] not found 'PUSH_TOKEN' in environment variables, please check it and try again")
+        raise ValueError(
+            f"[PushError] not found 'PUSH_TOKEN' in environment variables, please check it and try again")
 
     if engine == "gist":
         return PushToGist(token=token)

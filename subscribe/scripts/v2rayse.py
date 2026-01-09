@@ -29,7 +29,18 @@ import subconverter
 from clash import QuotedStr, quoted_scalar
 
 # outbind type
-SUPPORT_TYPE = ["ss", "ssr", "vmess", "trojan", "snell", "vless", "hysteria2", "hysteria", "http", "socks5", "anytls"]
+SUPPORT_TYPE = [
+    "ss",
+    "ssr",
+    "vmess",
+    "trojan",
+    "snell",
+    "vless",
+    "hysteria2",
+    "hysteria",
+    "http",
+    "socks5",
+    "anytls"]
 
 # date format
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -53,7 +64,11 @@ def current_time(utc: bool = True) -> datetime:
 def get_dates(last: datetime) -> list[str]:
     last, dates = last if last else current_time(utc=True), []
 
-    start = last.replace(hour=0, minute=0, second=0).replace(tzinfo=timezone.utc)
+    start = last.replace(
+        hour=0,
+        minute=0,
+        second=0).replace(
+        tzinfo=timezone.utc)
     end = current_time(utc=True).replace(hour=23, minute=59, second=59)
 
     while start <= end:
@@ -63,7 +78,12 @@ def get_dates(last: datetime) -> list[str]:
     return dates
 
 
-def detect(proxies: list, nopublic: bool, exclude: str, ignore: str, repeat: int) -> bool:
+def detect(
+        proxies: list,
+        nopublic: bool,
+        exclude: str,
+        ignore: str,
+        repeat: int) -> bool:
     exclude = utils.trim(text=exclude)
     ignore = utils.trim(text=ignore)
     repeat = max(1, repeat)
@@ -73,7 +93,7 @@ def detect(proxies: list, nopublic: bool, exclude: str, ignore: str, repeat: int
 
     count = 0
     for p in proxies:
-        if not p or type(p) != dict:
+        if not p or not isinstance(p, dict):
             continue
 
         name = str(p.get("name", ""))
@@ -83,10 +103,10 @@ def detect(proxies: list, nopublic: bool, exclude: str, ignore: str, repeat: int
 
             if re.search(exclude, name, flags=re.I):
                 count += 1
-        except:
+        except BaseException:
             logger.error(
-                f"[V2RaySE] invalid regex, ignore: {ignore}, exclude: {exclude}, message: \n{traceback.format_exc()}"
-            )
+                f"[V2RaySE] invalid regex, ignore: {ignore}, exclude: {exclude}, message: \n{
+                    traceback.format_exc()}")
 
         if count >= repeat:
             return True
@@ -102,14 +122,19 @@ def last_history(url: str, interval: int = 12) -> datetime:
         try:
             modified = json.loads(content).get(LAST_MODIFIED, "")
             if modified:
-                last = datetime.strptime(modified, DATE_FORMAT) + timedelta(minutes=-10)
+                last = datetime.strptime(
+                    modified, DATE_FORMAT) + timedelta(minutes=-10)
         except Exception:
             logger.error(f"[V2RaySE] invalid date format: {modified}")
 
     return last.replace(tzinfo=timezone.utc)
 
 
-def list_files(base: str, date: str, maxsize: int, last: datetime) -> list[str]:
+def list_files(
+        base: str,
+        date: str,
+        maxsize: int,
+        last: datetime) -> list[str]:
     marker, truncated, count = "", True, 0
     base, date = utils.trim(base), utils.trim(date)
     prefix, files = f"{base}?prefix={date}/", []
@@ -125,37 +150,52 @@ def list_files(base: str, date: str, maxsize: int, last: datetime) -> list[str]:
             document = ElementTree.fromstring(content)
             namespace = {"ns": "http://s3.amazonaws.com/doc/2006-03-01/"}
 
-            #  IsTruncated being true means the number of keys exceeds 1000, and pagination is required
-            is_truncated = document.find(path="ns:IsTruncated", namespaces=namespace)
-            truncated = utils.trim(is_truncated.text).lower() in ("true", "1") if is_truncated else False
+            # IsTruncated being true means the number of keys exceeds 1000, and
+            # pagination is required
+            is_truncated = document.find(
+                path="ns:IsTruncated", namespaces=namespace)
+            truncated = utils.trim(
+                is_truncated.text).lower() in (
+                "true", "1") if is_truncated else False
 
             # NextMarker indicates the start key for the next page
-            next_marker = document.find(path="ns:NextMarker", namespaces=namespace)
+            next_marker = document.find(
+                path="ns:NextMarker", namespaces=namespace)
             marker = next_marker.text if next_marker else ""
 
-            for item in document.iterfind(path="ns:Contents", namespaces=namespace):
-                name = item.findtext(path="ns:Key", default="", namespaces=namespace)
+            for item in document.iterfind(
+                    path="ns:Contents", namespaces=namespace):
+                name = item.findtext(
+                    path="ns:Key", default="", namespaces=namespace)
                 if not name:
                     continue
 
                 try:
                     # filter by file size
-                    size = int(item.findtext(path="ns:Size", default="0", namespaces=namespace))
+                    size = int(
+                        item.findtext(
+                            path="ns:Size",
+                            default="0",
+                            namespaces=namespace))
                     if size > maxsize:
                         continue
 
                     # filter by last modified time
-                    updated_at = item.findtext(path="ns:LastModified", default="", namespaces=namespace)
+                    updated_at = item.findtext(
+                        path="ns:LastModified", default="", namespaces=namespace)
                     if updated_at:
-                        modified = datetime.fromisoformat(updated_at[:-1]).replace(tzinfo=timezone.utc)
+                        modified = datetime.fromisoformat(
+                            updated_at[:-1]).replace(tzinfo=timezone.utc)
                         if modified < last:
                             continue
-                except:
-                    logger.error(f"[V2RaySE] parse details of the file {name} error")
+                except BaseException:
+                    logger.error(
+                        f"[V2RaySE] parse details of the file {name} error")
 
                 files.append(f"{base}/{name}")
-        except:
-            logger.error(f"[V2RaySE] list files error, date: {date}, marker: {marker}")
+        except BaseException:
+            logger.error(
+                f"[V2RaySE] list files error, date: {date}, marker: {marker}")
 
     return files
 
@@ -183,18 +223,19 @@ def fetchone(
 
         try:
             parts = re.findall(
-                r"(?m)^#(?:\s+)?(?:!MANAGED-CONFIG|订阅链接)[^\n]*?(https?://[^\s\"'<>]+)", content, flags=re.I
-            )
+                r"(?m)^#(?:\s+)?(?:!MANAGED-CONFIG|订阅链接)[^\n]*?(https?://[^\s\"'<>]+)",
+                content,
+                flags=re.I)
             if parts:
                 subscriptions.extend([utils.trim(p) for p in parts])
-        except:
+        except BaseException:
             pass
 
     if not noproxies:
         try:
             index = url.rfind("/")
             if index != -1:
-                name = url[index + 1 :]
+                name = url[index + 1:]
             else:
                 name = utils.random_chars(length=6, punctuation=False)
 
@@ -220,31 +261,41 @@ def fetchone(
                     outbounds = json.loads(content).get("outbounds", [])
                     for outbound in outbounds:
                         if outbound.get("type", "") == "tuic":
-                            logger.info(f"[V2RaySE] found tuic outbound in url: {url}")
+                            logger.info(
+                                f"[V2RaySE] found tuic outbound in url: {url}")
                             break
-                except:
+                except BaseException:
                     pass
-        except:
-            logger.error(f"[V2RaySE] parse proxies failed, url: {url}, message: \n{traceback.format_exc()}")
+        except BaseException:
+            logger.error(
+                f"[V2RaySE] parse proxies failed, url: {url}, message: \n{
+                    traceback.format_exc()}")
 
     return proxies, list(set(subscriptions)) if subscriptions else []
 
 
 def fetch(params: dict) -> list:
-    if not params or type(params) != dict:
+    if not params or not isinstance(params, dict):
         return []
 
     domain = utils.extract_domain(params.get("url", ""), include_protocal=True)
     if not domain:
-        logger.error(f"[V2RaySE] skip collect data due to parameter 'url' missing")
+        logger.error(
+            f"[V2RaySE] skip collect data due to parameter 'url' missing")
         return []
 
     storage = params.get("storage", {})
     pushtool = push.get_instance(config=push.PushConfig.from_dict(storage))
 
     persist = storage.get("items", {})
-    if not persist or type(persist) != dict or not pushtool.validate(config=persist.get("proxies", {})):
-        logger.error(f"[V2RaySE] invalid persist config, please check it and try again")
+    if not persist or not isinstance(
+        persist,
+        dict) or not pushtool.validate(
+        config=persist.get(
+            "proxies",
+            {})):
+        logger.error(
+            f"[V2RaySE] invalid persist config, please check it and try again")
         return []
 
     nopublic = params.get("nopublic", True)
@@ -253,7 +304,7 @@ def fetch(params: dict) -> list:
     support = set(params.get("types", SUPPORT_TYPE))
     interval = max(1, int(params.get("interval", 12)))
     repeat = max(1, int(params.get("repeat", 1)))
-    noproxies = params.get("noproxies", False) == True
+    noproxies = params.get("noproxies", False)
     maxsize = min(max(524288, int(params.get("maxsize", 524288))), sys.maxsize)
     mixed = utils.trim(params.get("format", "clash")).lower() != "clash"
     display = params.get("display", False)
@@ -266,40 +317,60 @@ def fetch(params: dict) -> list:
     last = last_history(url=history_url, interval=interval)
 
     dates, manual = params.get("dates", []), True
-    if not dates or type(dates) != list:
+    if not dates or not isinstance(dates, list):
         dates, manual = get_dates(last=last), False
 
     begin = current_time(utc=True).strftime(DATE_FORMAT)
     if manual:
-        last = datetime(time.strptime("1970-01-01 00:00:00", DATE_FORMAT)[:6]).replace(tzinfo=timezone.utc)
+        last = datetime(
+            time.strptime(
+                "1970-01-01 00:00:00",
+                DATE_FORMAT)[
+                :6]).replace(
+            tzinfo=timezone.utc)
         logger.info(f"[V2RaySE] begin crawl data, dates: {dates}")
     else:
-        logger.info(f"[V2RaySE] begin crawl data from [{last.strftime(DATE_FORMAT)}] to [{begin}]")
+        logger.info(
+            f"[V2RaySE] begin crawl data from [{
+                last.strftime(DATE_FORMAT)}] to [{begin}]")
 
     base, starttime = f"{domain}/public", time.time()
     partitions = [[base, date, maxsize, last] for date in dates]
 
-    links = utils.multi_thread_run(func=list_files, tasks=partitions, show_progress=display, description="ListSub")
+    links = utils.multi_thread_run(
+        func=list_files,
+        tasks=partitions,
+        show_progress=display,
+        description="ListSub")
     files = list(set(itertools.chain.from_iterable(links)))
-    array = [[x, nopublic, exclude, ignore, repeat, noproxies] for x in files if x]
+    array = [[x, nopublic, exclude, ignore, repeat, noproxies]
+             for x in files if x]
 
     if not array:
-        logger.error(f"[V2RaySE] cannot found any valid shared file, dates: {dates}")
+        logger.error(
+            f"[V2RaySE] cannot found any valid shared file, dates: {dates}")
         return []
 
     logger.info(f"[V2RaySE] start to fetch shared files, count: {len(array)}")
 
     tasks, proxies, subscriptions = [], [], set()
-    results = utils.multi_thread_run(func=fetchone, tasks=array, show_progress=display, description="FetchSub")
+    results = utils.multi_thread_run(
+        func=fetchone,
+        tasks=array,
+        show_progress=display,
+        description="FetchSub")
 
     for result in results:
-        proxies.extend([p for p in result[0] if p and p.get("name", "") and p.get("type", "") in support])
+        proxies.extend([p for p in result[0] if p and p.get(
+            "name", "") and p.get("type", "") in support])
         subscriptions.update([x for x in result[1] if x])
 
     cost = "{:.2f}s".format(time.time() - starttime)
     logger.info(
-        f"[V2RaySE] finished crawl tasks, cost: {cost}, found {len(proxies)} proxies and {len(subscriptions)} subscriptions: {list(subscriptions)}"
-    )
+        f"[V2RaySE] finished crawl tasks, cost: {cost}, found {
+            len(proxies)} proxies and {
+            len(subscriptions)} subscriptions: {
+                list(subscriptions)}")
 
     for sub in subscriptions:
         config = deepcopy(params.get("config", {}))
@@ -325,7 +396,8 @@ def fetch(params: dict) -> list:
     if os.path.exists(generate) and os.path.isfile(generate):
         os.remove(generate)
 
-    success = subconverter.generate_conf(generate, artifact, source, dest, "mixed" if mixed else "clash")
+    success = subconverter.generate_conf(
+        generate, artifact, source, dest, "mixed" if mixed else "clash")
     if not success:
         logger.error(f"[V2RaySE] cannot generate subconverter config file")
         yaml.add_representer(QuotedStr, quoted_scalar)
@@ -342,9 +414,14 @@ def fetch(params: dict) -> list:
                 content = f.read()
             if mixed and not utils.isb64encode(content=content):
                 try:
-                    content = base64.b64encode(content.encode(encoding="UTF8")).decode(encoding="UTF8")
+                    content = base64.b64encode(
+                        content.encode(
+                            encoding="UTF8")).decode(
+                        encoding="UTF8")
                 except Exception as e:
-                    logger.error(f"[V2RaySE] base64 encode converted data error, message: {str(e)}")
+                    logger.error(
+                        f"[V2RaySE] base64 encode converted data error, message: {
+                            str(e)}")
                     return tasks
 
         # clean workspace
@@ -354,19 +431,26 @@ def fetch(params: dict) -> list:
     filename = os.path.join(os.path.dirname(datapath), "data", "v2rayse.txt")
     utils.write_file(filename=filename, lines=content)
 
-    success = pushtool.push_to(content=content or " ", config=proxies_store, group="v2rayse")
+    success = pushtool.push_to(
+        content=content or " ",
+        config=proxies_store,
+        group="v2rayse")
     if not success:
         return tasks
 
     # save last modified time
     if not manual and pushtool.validate(config=modified_store):
         content = json.dumps({LAST_MODIFIED: begin})
-        pushtool.push_to(content=content, config=modified_store, group="modified")
+        pushtool.push_to(
+            content=content,
+            config=modified_store,
+            group="modified")
 
     config = params.get("config", {})
     config["sub"] = pushtool.raw_url(config=proxies_store)
     config["saved"] = True
-    config["name"] = "v2rayse" if not config.get("name", "") else config.get("name")
+    config["name"] = "v2rayse" if not config.get(
+        "name", "") else config.get("name")
     config["push_to"] = list(set(config.get("push_to", [])))
 
     tasks.append(config)

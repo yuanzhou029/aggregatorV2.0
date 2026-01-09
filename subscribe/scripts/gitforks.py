@@ -23,7 +23,10 @@ GITHUB_API = "https://api.github.com"
 GITHUB_CONTENT_API = "https://raw.githubusercontent.com"
 
 # proxies file path
-PROXY_FILES = ["aggregate/data/proxies.yaml", "data/proxies.yaml", "data/clash.yaml"]
+PROXY_FILES = [
+    "aggregate/data/proxies.yaml",
+    "data/proxies.yaml",
+    "data/clash.yaml"]
 
 # subscribes file path
 SUBSCRIBE_FILES = ["aggregate/data/subscribes.txt", "data/subscribes.txt"]
@@ -55,12 +58,18 @@ def query_forks_count(username: str, repository: str, retry: int = 3) -> int:
     try:
         data = json.loads(content)
         return data.get("forks_count", 0)
-    except:
-        logger.error(f"[GithubFork] occur error when parse forks count, message: {content}")
+    except BaseException:
+        logger.error(
+            f"[GithubFork] occur error when parse forks count, message: {content}")
         return -1
 
 
-def query_forks(username: str, repository: str, page: int, peer: int = 100, sort: str = "newest") -> dict:
+def query_forks(
+        username: str,
+        repository: str,
+        page: int,
+        peer: int = 100,
+        sort: str = "newest") -> dict:
     username = utils.trim(username)
     repository = utils.trim(repository)
 
@@ -79,7 +88,8 @@ def query_forks(username: str, repository: str, page: int, peer: int = 100, sort
 
     content, retry = "", 5
     while not content and retry > 0:
-        content = utils.http_get(url=url, headers=DEFAULT_HEADERS, interval=1.0)
+        content = utils.http_get(
+            url=url, headers=DEFAULT_HEADERS, interval=1.0)
         retry -= 1
         if not content:
             time.sleep(2)
@@ -87,21 +97,25 @@ def query_forks(username: str, repository: str, page: int, peer: int = 100, sort
     try:
         data = json.loads(content)
         for fork in data:
-            if not fork or type(fork) != dict:
+            if not fork or not isinstance(fork, dict):
                 continue
 
             fullname = fork.get("full_name", "")
             branch = fork.get("default_branch", DEFAULT_BRANCH)
 
-            links = [f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{p}" for p in PROXY_FILES]
-            subs = [f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{s}" for s in SUBSCRIBE_FILES]
+            links = [
+                f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{p}" for p in PROXY_FILES]
+            subs = [
+                f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{s}" for s in SUBSCRIBE_FILES]
 
             subscriptions[fullname] = (links, subs)
-    except:
-        logger.error(f"[GithubFork] cannot fetch forks for page: {page}, message: {content}")
+    except BaseException:
+        logger.error(
+            f"[GithubFork] cannot fetch forks for page: {page}, message: {content}")
 
     cost = "{:.2f}s".format(time.time() - starttime)
-    logger.info(f"[GithubFork] finished query forks for page: {page}, cost: {cost}")
+    logger.info(
+        f"[GithubFork] finished query forks for page: {page}, cost: {cost}")
 
     return subscriptions
 
@@ -121,29 +135,33 @@ def collect_subs(params: dict) -> list[dict]:
 
         return f"{ghproxy}/{url}"
 
-    if not params or type(params) != dict:
+    if not params or not isinstance(params, dict):
         return []
 
     username = utils.trim(params.get("username", "wzdnzd"))
     repository = utils.trim(params.get("repository", "aggregator"))
 
     if not username or not repository:
-        logger.error(f"[GithubFork] cannot list forks from github due to username or repository is empty")
+        logger.error(
+            f"[GithubFork] cannot list forks from github due to username or repository is empty")
         return []
 
     # used to store subscriptions
     storage = params.get("storage", {})
-    if not storage or type(storage) != dict:
-        logger.error(f"[GithubFork] cannot fetch subscriptions due to invalid storage config")
+    if not storage or not isinstance(storage, dict):
+        logger.error(
+            f"[GithubFork] cannot fetch subscriptions due to invalid storage config")
         return []
 
     persist = storage.get("items", {})
     pushtool = push.get_instance(config=push.PushConfig.from_dict(storage))
     if not pushtool.validate(config=persist):
-        logger.error(f"[GithubFork] cannot fetch subscriptions due to invalid persist config")
+        logger.error(
+            f"[GithubFork] cannot fetch subscriptions due to invalid persist config")
         return []
 
-    # only keep subscriptions, usually used when there are too many nodes to save to the remote service
+    # only keep subscriptions, usually used when there are too many nodes to
+    # save to the remote service
     only_sublink = params.get("only_sublink", False)
 
     # github proxy server
@@ -152,8 +170,11 @@ def collect_subs(params: dict) -> list[dict]:
         ghproxy = ""
 
     config = params.get("config", {})
-    if not isinstance(config, dict) or (not only_sublink and not config.get("push_to")):
-        logger.error(f"[GithubFork] cannot fetch subscriptions bcause not found arguments 'push_to'")
+    if not isinstance(
+            config, dict) or (
+            not only_sublink and not config.get("push_to")):
+        logger.error(
+            f"[GithubFork] cannot fetch subscriptions bcause not found arguments 'push_to'")
         return []
 
     materials, tasks = {}, []
@@ -167,7 +188,9 @@ def collect_subs(params: dict) -> list[dict]:
 
     whitelist, results = params.get("whitelist", []), []
     if whitelist and isinstance(whitelist, list):
-        logger.info(f"[GithubFork] fetch github forks via whitelist, count: {len(whitelist)}")
+        logger.info(
+            f"[GithubFork] fetch github forks via whitelist, count: {
+                len(whitelist)}")
 
         subscriptions = {}
         for fork in whitelist:
@@ -178,25 +201,31 @@ def collect_subs(params: dict) -> list[dict]:
             branch = DEFAULT_BRANCH if len(words) == 2 else words[2]
             fullname = f"{words[0]}/{words[1]}"
 
-            links = [f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{p}" for p in PROXY_FILES]
-            subs = [f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{s}" for s in SUBSCRIBE_FILES]
+            links = [
+                f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{p}" for p in PROXY_FILES]
+            subs = [
+                f"{GITHUB_CONTENT_API}/{fullname}/{branch}/{s}" for s in SUBSCRIBE_FILES]
             subscriptions[fullname] = (links, subs)
 
         results = [subscriptions]
     else:
         # query fork list
-        count, peer = query_forks_count(username=username, repository=repository, retry=3), 100
+        count, peer = query_forks_count(
+            username=username, repository=repository, retry=3), 100
         total = int(math.ceil(count / peer))
         sort = params.get("sort", "") or "newest"
 
-        logger.info(f"[GithubFork] fetch github forks via full scan, count: {total}")
+        logger.info(
+            f"[GithubFork] fetch github forks via full scan, count: {total}")
 
-        # see: https://docs.github.com/en/rest/repos/forks?apiVersion=2022-11-28
+        # see:
+        # https://docs.github.com/en/rest/repos/forks?apiVersion=2022-11-28
         if sort not in ["newest", "oldest", "stargazers", "watchers"]:
             sort = "newest"
 
         # concurrent fetch
-        pages = [[username, repository, x, peer, sort] for x in range(1, total + 1)]
+        pages = [[username, repository, x, peer, sort]
+                 for x in range(1, total + 1)]
         results = utils.multi_thread_run(func=query_forks, tasks=pages)
 
     include = utils.trim(params.get("include", ""))
@@ -206,16 +235,16 @@ def collect_subs(params: dict) -> list[dict]:
     try:
         remain = max(params.get("remain", 0), 0)
         life = max(params.get("life", 0), 0)
-    except:
+    except BaseException:
         logger.warning(f"[GithubFork] invalid remain or life, set to 0")
         remain, life = 0, 0
 
     for result in results:
-        if not result or type(result) != dict:
+        if not result or not isinstance(result, dict):
             continue
 
         for name, links in result.items():
-            if not links or type(links) != tuple:
+            if not links or not isinstance(links, tuple):
                 continue
 
             name = re.sub(r"/|_", "-", name, flags=re.I).lower()
@@ -224,9 +253,11 @@ def collect_subs(params: dict) -> list[dict]:
             proxies, subs = links[0], links[1]
             for proxy in proxies:
                 proxy = github_warp(ghproxy=ghproxy, url=proxy)
-                materials[proxy] = update_conf(config=config, sub=proxy, name=name)
+                materials[proxy] = update_conf(
+                    config=config, sub=proxy, name=name)
             for sub in subs:
-                tasks.append([sub, push_to, include, exclude, config, None, Origin.PAGE])
+                tasks.append([sub, push_to, include, exclude,
+                             config, None, Origin.PAGE])
 
     # crawl all subscriptions from subscriptions.txt
     results = utils.multi_thread_run(func=crawl.crawl_single_page, tasks=tasks)
@@ -247,8 +278,11 @@ def collect_subs(params: dict) -> list[dict]:
     masks = utils.multi_thread_run(func=crawl.is_available, tasks=tasks)
 
     # filter available subscriptions
-    effective_subs = sorted([candidates[i] for i in range(len(masks)) if masks[i]])
-    logger.info(f"[GithubFork] collect task finished, found {len(effective_subs)} subscriptions")
+    effective_subs = sorted([candidates[i]
+                            for i in range(len(masks)) if masks[i]])
+    logger.info(
+        f"[GithubFork] collect task finished, found {
+            len(effective_subs)} subscriptions")
 
     # save result
     if effective_subs:

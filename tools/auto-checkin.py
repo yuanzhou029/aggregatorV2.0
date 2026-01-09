@@ -81,7 +81,7 @@ def extract_domain(url) -> str:
     if end == -1:
         end = len(url) - 1
 
-    return url[start + 2 : end]
+    return url[start + 2: end]
 
 
 def login(url, params, headers, retry, proxy=False) -> dict:
@@ -96,10 +96,16 @@ def login(url, params, headers, retry, proxy=False) -> dict:
                 verify=False,
             )
         else:
-            response = requests.post(url, data=params, headers=headers, allow_redirects=True)
+            response = requests.post(
+                url,
+                data=params,
+                headers=headers,
+                allow_redirects=True)
 
         if response.status_code == 200:
-            return {str(key).lower(): value for key, value in response.headers.items()}
+            return {
+                str(key).lower(): value for key,
+                value in response.headers.items()}
         return {}
 
     except RequestException as e:
@@ -131,7 +137,10 @@ def checkin(url, headers, retry, proxy=False) -> None:
                     else response.json()
                 )
 
-                logging.info("签到成功 URL: {} {}".format(extract_domain(url), data["msg"]))
+                logging.info(
+                    "签到成功 URL: {} {}".format(
+                        extract_domain(url),
+                        data["msg"]))
             except JSONDecodeError:
                 logging.error("签到失败 URL: {}".format(extract_domain(url)))
 
@@ -210,7 +219,8 @@ def wrapper(args) -> bool:
 
 def main():
     config = config_load(os.path.join(PATH, "config.json"))
-    if config is None or "domains" not in config or len(config["domains"]) == 0:
+    if config is None or "domains" not in config or len(
+            config["domains"]) == 0:
         sys.exit(0)
 
     if "retry" in config and config["retry"] > 0:
@@ -218,7 +228,7 @@ def main():
         RETRY_NUM = int(config["retry"])
 
     # only support http(s) proxy
-    if "proxyServer" in config and type(config["proxyServer"]) == dict:
+    if "proxyServer" in config and isinstance(config["proxyServer"], dict):
         global PROXY
         PROXY = config["proxyServer"]
 

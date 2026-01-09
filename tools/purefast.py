@@ -3,6 +3,7 @@
 # @Author  : wzdnzd
 # @Time    : 2022-12-07
 
+from http import cookiejar
 import concurrent.futures
 import gzip
 import json
@@ -24,7 +25,6 @@ from urllib.error import HTTPError
 from urllib.request import OpenerDirector
 
 warnings.filterwarnings("ignore")
-from http import cookiejar
 
 PATH = os.path.abspath(os.path.dirname(__file__))
 
@@ -52,7 +52,8 @@ def login(
     retry: int = 3,
 ) -> tuple[bool, dict]:
     if isblank(url) or not params or retry <= 0 or checkconn(opener, cookies):
-        logging.error(f"[PFVPNLoginError] cannot login, url: {url}, retry: {retry}")
+        logging.error(
+            f"[PFVPNLoginError] cannot login, url: {url}, retry: {retry}")
         return False, {}
 
     if not headers:
@@ -71,12 +72,17 @@ def login(
         while not successed and count > 0 and time.time() < endtime:
             count -= 1
             data = urllib.parse.urlencode(params).encode(encoding="UTF8")
-            request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+            request = urllib.request.Request(
+                url, data=data, headers=headers, method="POST")
             response = opener.open(request, timeout=10)
             cookie = response.getheader("Set-Cookie")
 
             if response.getcode() == 200:
-                if not skip and not isblank(specified_cookie(cookie, "ge_ua_p", False)):
+                if not skip and not isblank(
+                    specified_cookie(
+                        cookie,
+                        "ge_ua_p",
+                        False)):
                     skip, headers = bypass(
                         url=url,
                         opener=opener,
@@ -98,7 +104,7 @@ def login(
 
             time.sleep(random.randint(5, 15) / 10)
         return successed, headers
-    except:
+    except BaseException:
         return login(url, opener, cookies, params, headers, endtime, retry - 1)
 
 
@@ -111,17 +117,23 @@ def checkin(
     retry: int = 3,
 ) -> bool:
     if isblank(url) or not headers or retry <= 0 or checkconn(opener, cookies):
-        logging.error(f"[PFVPNError] cannot checkin, url: {url}, retry: {retry}")
+        logging.error(
+            f"[PFVPNError] cannot checkin, url: {url}, retry: {retry}")
         return False
     try:
         successed, skip, count = False, False, 25
         while not skip and not successed and count > 0 and time.time() < endtime:
             count -= 1
-            request = urllib.request.Request(url, headers=headers, method="POST")
+            request = urllib.request.Request(
+                url, headers=headers, method="POST")
             response = opener.open(request, timeout=10)
 
             if response.getcode() == 200:
-                if not isblank(specified_cookie(response.getheader("Set-Cookie"), "ge_ua_p", False)):
+                if not isblank(
+                    specified_cookie(
+                        response.getheader("Set-Cookie"),
+                        "ge_ua_p",
+                        False)):
                     skip, headers = bypass(
                         url=url,
                         opener=opener,
@@ -140,20 +152,24 @@ def checkin(
                     successed = data.get("ret", 0) == 1
                     if successed:
                         message = data.get("msg", "")
-                        logging.info(f"[PFVPN] checkin successed, message: {message}")
+                        logging.info(
+                            f"[PFVPN] checkin successed, message: {message}")
                         break
-                except:
-                    logging.error(f"[PFVPNError] checkin failed, message: {content}")
+                except BaseException:
+                    logging.error(
+                        f"[PFVPNError] checkin failed, message: {content}")
 
             time.sleep(random.randint(5, 15) / 10)
         return successed
     except HTTPError as e:
         if e.status == 307:
-            cookie = specified_cookie(e.headers["Set-Cookie"], "WAF_VALIDATOR_ID", True)
-            headers["cookie"] = add_or_replace(source=headers.get("cookie", ""), dest=cookie)
+            cookie = specified_cookie(
+                e.headers["Set-Cookie"], "WAF_VALIDATOR_ID", True)
+            headers["cookie"] = add_or_replace(
+                source=headers.get("cookie", ""), dest=cookie)
             headers["x-cache"] = "BYPASS"
         return checkin(url, opener, cookies, headers, endtime, retry - 1)
-    except:
+    except BaseException:
         return checkin(url, opener, cookies, headers, endtime, retry - 1)
 
 
@@ -171,7 +187,8 @@ def get_cookie(text: str) -> str:
 def run(domain: str, params: dict, timeout: int) -> bool:
     domain = extract_domain(url=domain, include_protocal=True)
     if not domain:
-        logging.error(f"[PFVPNError] cannot checkin because domain: {domain} is invalidate")
+        logging.error(
+            f"[PFVPNError] cannot checkin because domain: {domain} is invalidate")
         return False
 
     login_url = domain + params.get("login", "/auth/login")
@@ -182,21 +199,25 @@ def run(domain: str, params: dict, timeout: int) -> bool:
     passwd = params.get("password", "").strip()
     try:
         if isblank(email) or isblank(passwd):
-            logging.error(f"[PFVPNError] skip checkin for username=[{username}]")
+            logging.error(
+                f"[PFVPNError] skip checkin for username=[{username}]")
             return False
 
         passwd = b64decode(passwd)
-    except:
-        logging.error(f"[PFVPNError] username=[{username}], password error, please encoding it with base64")
+    except BaseException:
+        logging.error(
+            f"[PFVPNError] username=[{username}], password error, please encoding it with base64")
         return False
 
     user_info = {"email": email, "passwd": passwd, "code": ""}
     opener, cookies = build_opener()
     starttime, endtime = time.time(), time.time() + max(timeout, 5)
 
-    successed, headers = login(login_url, opener, cookies, user_info, None, endtime, 3)
+    successed, headers = login(
+        login_url, opener, cookies, user_info, None, endtime, 3)
     if not successed:
-        logging.error(f"[PFVPNError] login failed, skip checkin, username: {username}")
+        logging.error(
+            f"[PFVPNError] login failed, skip checkin, username: {username}")
         return successed
 
     headers["referer"] = domain + "/user"
@@ -204,7 +225,8 @@ def run(domain: str, params: dict, timeout: int) -> bool:
     successed = checkin(checkin_url, opener, cookies, headers, endtime, 5)
 
     cost = round(time.time() - starttime, 2)
-    logging.info(f"[PFVPNInfo] finished checkin, username: {username}, result: {successed}, cost: {cost}s")
+    logging.info(
+        f"[PFVPNInfo] finished checkin, username: {username}, result: {successed}, cost: {cost}s")
 
     return successed
 
@@ -229,7 +251,8 @@ def aboartable_run(domain: str, params: dict, timeout: int = 180) -> None:
             future.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
             username = params.get("username", "").split("@", maxsplit=1)[0]
-            logging.error(f"[PFVPNError] checkin task aborting due to timeout {timeout}s, username: {username}")
+            logging.error(
+                f"[PFVPNError] checkin task aborting due to timeout {timeout}s, username: {username}")
             executor.shutdown(wait=False, cancel_futures=True)
 
 
@@ -269,10 +292,16 @@ def bypass(
         groups = re.findall(r'var\s+cpk(?:\s+)?=(?:\s+)?"(.*)"', content, re.I)
         cpkname = groups[0] if groups else "ge_ua_p"
 
-        groups = re.findall(r'var\s+step(?:\s+)?=(?:\s+)?"(.*)"', content, re.I)
+        groups = re.findall(
+            r'var\s+step(?:\s+)?=(?:\s+)?"(.*)"',
+            content,
+            re.I)
         step = groups[0] if groups else "prev"
 
-        groups = re.findall(r"var\s+nonce(?:\s+)?=(?:\s+)?(\d+);", content, re.I)
+        groups = re.findall(
+            r"var\s+nonce(?:\s+)?=(?:\s+)?(\d+);",
+            content,
+            re.I)
         nonce = int(groups[0]) if groups else -1
 
         cpkvalue = specified_cookie(cookies, cpkname, False)
@@ -281,10 +310,14 @@ def bypass(
 
         time.sleep(max(5 - (time.time() - starttime), 0))
         sumval = calsum(cpk=cpkvalue, nonce=nonce)
-        data = urllib.parse.urlencode({"sum": sumval, "nonce": nonce}).encode(encoding="UTF8")
+        data = urllib.parse.urlencode(
+            {"sum": sumval, "nonce": nonce}).encode(encoding="UTF8")
         headers["x-ge-ua-step"] = step
-        headers["cookie"] = add_or_replace(source=headers.get("cookie", ""), dest=f"{cpkname}={cpkvalue}")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        headers["cookie"] = add_or_replace(
+            source=headers.get(
+                "cookie", ""), dest=f"{cpkname}={cpkvalue}")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST")
 
         successed, count = False, 20
         while not successed and count > 0 and time.time() < endtime:
@@ -302,16 +335,21 @@ def bypass(
 
         headers.pop("x-ge-ua-step", "")
         # remove ge_ua_p from cookie
-        cookie = add_or_replace(source=headers.get("cookie", ""), dest=f"{cpkname}=")
+        cookie = add_or_replace(
+            source=headers.get(
+                "cookie", ""), dest=f"{cpkname}=")
         headers["cookie"] = cookie
 
         if successed:
             # add or replace ge_ua_key and lang
-            guk = specified_cookie(response.getheader("Set-Cookie"), "ge_ua_key", concat=True)
+            guk = specified_cookie(
+                response.getheader("Set-Cookie"),
+                "ge_ua_key",
+                concat=True)
             cookie = add_or_replace(source=cookie, dest=f"{guk}; lang=zh-cn")
             headers["cookie"] = cookie
         return successed, headers
-    except:
+    except BaseException:
         return bypass(
             url=url,
             opener=opener,
@@ -330,13 +368,13 @@ def specified_cookie(items: Any, key: str, concat: bool = False) -> str:
     if not items or isblank(key):
         return value
 
-    if type(items) == cookiejar.CookieJar:
+    if isinstance(items, cookiejar.CookieJar):
         for cookie in items:
             if key == cookie.name:
                 value = cookie.value
                 break
 
-    elif type(items) == str:
+    elif isinstance(items, str):
         for cookie in items.split(";"):
             words = cookie.split("=", maxsplit=1)
             if len(words) != 2:
@@ -373,16 +411,16 @@ def add_or_replace(source: str, dest: str) -> str:
 
 
 def read(response: HTTPResponse) -> str:
-    if not response or type(response) != HTTPResponse:
+    if not response or not isinstance(response, HTTPResponse):
         return ""
     try:
         content = response.read()
         try:
             content = gzip.decompress(content).decode("utf8")
-        except:
+        except BaseException:
             content = str(content, encoding="utf8")
         return content
-    except:
+    except BaseException:
         return ""
 
 
@@ -394,13 +432,15 @@ def loadconf(filename: str = "") -> dict:
     configs = {}
     try:
         if isblank(domain) or isblank(ustr) or isblank(pstr):
-            if not isblank(filename) and os.path.exists(filename) and os.path.isfile(filename):
+            if not isblank(filename) and os.path.exists(
+                    filename) and os.path.isfile(filename):
                 configs = json.loads(open(filename, "r").read())
         else:
             configs["domain"] = domain
             usernames, passwords = ustr.split(";"), pstr.split(";")
             if len(usernames) != len(passwords):
-                logging.warning(f"[PFVPNError] the number of usernames and the number of passwords do not match")
+                logging.warning(
+                    f"[PFVPNError] the number of usernames and the number of passwords do not match")
             else:
                 accounts = []
                 for i in range(len(usernames)):
@@ -411,14 +451,15 @@ def loadconf(filename: str = "") -> dict:
                         }
                     )
                 configs["accounts"] = accounts
-    except:
-        logging.error(f"[PFVPNError] loading config error, filename: {filename}")
+    except BaseException:
+        logging.error(
+            f"[PFVPNError] loading config error, filename: {filename}")
 
     return configs
 
 
 def isblank(text: str) -> bool:
-    return not text or type(text) != str or not text.strip()
+    return not text or not isinstance(text, str) or not text.strip()
 
 
 def build_opener() -> tuple[OpenerDirector, cookiejar.CookieJar]:
@@ -426,13 +467,15 @@ def build_opener() -> tuple[OpenerDirector, cookiejar.CookieJar]:
     cookie_handle = urllib.request.HTTPCookieProcessor(cookies)
     http_handle = urllib.request.HTTPHandler()
     https_handle = urllib.request.HTTPSHandler()
-    opener = urllib.request.build_opener(http_handle, https_handle, cookie_handle)
+    opener = urllib.request.build_opener(
+        http_handle, https_handle, cookie_handle)
 
     return opener, cookies
 
 
 def checkconn(opener: OpenerDirector, cookies: cookiejar.CookieJar) -> bool:
-    return opener is None or type(opener) != OpenerDirector or cookies is None or type(cookies) != cookiejar.CookieJar
+    return opener is None or not isinstance(
+        opener, type(cookies)) != cookiejar.CookieJar
 
 
 def extract_domain(url: str, include_protocal: bool = False) -> str:
@@ -450,7 +493,7 @@ def extract_domain(url: str, include_protocal: bool = False) -> str:
     if include_protocal:
         return url[:end]
 
-    return url[start + 2 : end]
+    return url[start + 2: end]
 
 
 def main() -> None:
@@ -459,7 +502,8 @@ def main() -> None:
     accounts = config.get("accounts", [])
 
     if isblank(domain) or not accounts:
-        logging.error(f"[PFVPNError] skip checkin because cannot found any valid config, exit")
+        logging.error(
+            f"[PFVPNError] skip checkin because cannot found any valid config, exit")
         sys.exit(1)
 
     params = [[domain, x, 300] for x in accounts if x]

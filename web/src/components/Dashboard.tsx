@@ -75,6 +75,19 @@ const Dashboard: React.FC = () => {
     return enabled ? 'success' : 'default';
   };
 
+  const getStatusText = (status: string) => {
+    switch(status) {
+      case 'running':
+        return '运行中';
+      case 'idle':
+        return '空闲';
+      case 'error':
+        return '错误';
+      default:
+        return status || '空闲';
+    }
+  };
+
   const columns = [
     {
       title: '插件名称',
@@ -118,8 +131,8 @@ const Dashboard: React.FC = () => {
       title: '运行状态',
       key: 'run_status',
       render: (record: Plugin) => (
-        <Tag color={record.status === 'error' ? 'red' : 'blue'}>
-          {record.status === 'error' ? '运行失败' : record.status || '正常'}
+        <Tag color={record.status === 'error' ? 'red' : record.status === 'running' ? 'green' : 'blue'}>
+          {getStatusText(record.status)}
         </Tag>
       ),
     },
